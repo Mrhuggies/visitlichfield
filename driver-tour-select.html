@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Tour - Driver Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .driver-info h2 {
+            font-size: 24px;
+            color: #1F2937;
+        }
+        
+        .driver-info p {
+            color: #6B7280;
+            margin-top: 4px;
+        }
+        
+        .logout-btn {
+            padding: 10px 20px;
+            background: #EF4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logout-btn:hover {
+            background: #DC2626;
+        }
+        
+        .profile-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+        
+        .profile-btn:hover {
+            background: #5568d3;
+        }
+        
+        .section-title {
+            color: white;
+            font-size: 20px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        .tour-grid {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .tour-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 3px solid transparent;
+        }
+        
+        .tour-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            border-color: #667eea;
+        }
+        
+        .tour-card.active {
+            border-color: #10B981;
+            background: #F0FDF4;
+        }
+        
+        .tour-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+        
+        .tour-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1F2937;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+        
+        .status-scheduled {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        
+        .tour-details {
+            display: flex;
+            gap: 20px;
+            margin-top: 12px;
+            color: #6B7280;
+            font-size: 14px;
+        }
+        
+        .tour-detail {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .create-tour-btn {
+            width: 100%;
+            padding: 16px;
+            background: white;
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .create-tour-btn:hover {
+            background: #F3F4F6;
+            border-color: #764ba2;
+            color: #764ba2;
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            padding: 40px;
+            font-size: 18px;
+        }
+        
+        .empty-state {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state h3 {
+            font-size: 20px;
+            color: #1F2937;
+            margin-bottom: 8px;
+        }
+        
+        .empty-state p {
+            color: #6B7280;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="driver-info">
+                <h2 id="driverName">Loading...</h2>
+                <p id="driverEmail"></p>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <a href="driver-profile.html" class="profile-btn">
+                    👤 Profile
+                </a>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        
+        <div id="loadingState" class="loading">
+            Loading your tours...
+        </div>
+        
+        <div id="toursList" style="display: none;">
+            <h3 class="section-title">📅 Your Tours Today</h3>
+            <div class="tour-grid" id="toursGrid"></div>
+            
+            <button class="create-tour-btn" onclick="createNewTour()">
+                ➕ Create New Tour
+            </button>
+        </div>
+        
+        <div id="emptyState" style="display: none;" class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h3>No Tours Yet</h3>
+            <p>You don't have any tours scheduled for today.</p>
+            <button class="create-tour-btn" onclick="createNewTour()" style="max-width: 300px; margin: 0 auto;">
+                ➕ Create Your First Tour
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        let driverInfo = null;
+        let driverToken = null;
+        
+        // Check authentication
+        function checkAuth() {
+            driverToken = localStorage.getItem('driverToken');
+            const driverInfoStr = localStorage.getItem('driverInfo');
+            
+            if (!driverToken || !driverInfoStr) {
+                window.location.href = 'driver-login.html';
+                return false;
+            }
+            
+            driverInfo = JSON.parse(driverInfoStr);
+            document.getElementById('driverName').textContent = `Hi, ${driverInfo.name}! 👋`;
+            document.getElementById('driverEmail').textContent = driverInfo.email;
+            
+            return true;
+        }
+        
+        // Load driver's tours
+        async function loadTours() {
+            if (!checkAuth()) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/driver-tours.php`, {
+                    headers: {
+                        'X-Driver-Token': driverToken
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        logout();
+                        return;
+                    }
+                    throw new Error(data.error || 'Failed to load tours');
+                }
+                
+                displayTours(data.tours);
+                
+            } catch (error) {
+                console.error('Failed to load tours:', error);
+                alert('Failed to load tours: ' + error.message);
+            }
+        }
+        
+        // Display tours
+        function displayTours(tours) {
+            document.getElementById('loadingState').style.display = 'none';
+            
+            if (tours.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('toursList').style.display = 'block';
+            const grid = document.getElementById('toursGrid');
+            grid.innerHTML = '';
+            
+            tours.forEach(tour => {
+                const card = document.createElement('div');
+                card.className = `tour-card ${tour.status}`;
+                card.onclick = () => selectTour(tour.tour_code);
+                
+                card.innerHTML = `
+                    <div class="tour-header">
+                        <div class="tour-title">${tour.display_name}</div>
+                        <span class="status-badge status-${tour.status}">
+                            ${tour.status === 'active' ? '🟢 Active' : '🟡 Scheduled'}
+                        </span>
+                    </div>
+                    <div class="tour-details">
+                        <div class="tour-detail">
+                            <span>📍</span>
+                            <span>${tour.city_name}</span>
+                        </div>
+                        <div class="tour-detail">
+                            <span>🕐</span>
+                            <span>${tour.departure_time}</span>
+                        </div>
+                        <div class="tour-detail">
+                            <span>👥</span>
+                            <span>${tour.participant_count} tourist${tour.participant_count !== 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+        
+        // Select tour and go to dashboard
+        function selectTour(tourCode) {
+            localStorage.setItem('driverTourCode', tourCode);
+            window.location.href = 'driver-dashboard.html';
+        }
+        
+        // Create new tour
+        function createNewTour() {
+            window.location.href = 'driver-create-tour.html';
+        }
+        
+        // Logout
+        function logout() {
+            localStorage.removeItem('driverToken');
+            localStorage.removeItem('driverInfo');
+            localStorage.removeItem('driverTourCode');
+            window.location.href = 'driver-login.html';
+        }
+        
+        // Load on page load
+        loadTours();
+    </script>
+</body>
+</html>

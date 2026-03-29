@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Admin User</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #F3F4F6;
+            padding: 40px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { margin-bottom: 24px; color: #1F2937; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #374151; }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover { background: #5568d3; }
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert.success { background: #D1FAE5; color: #065F46; }
+        .alert.error { background: #FEE2E2; color: #991B1B; }
+        .warning {
+            background: #FEF3C7;
+            color: #92400E;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create Admin User</h1>
+        
+        <div class="warning">
+            ⚠️ Only super admins should access this page. This will create a user with full admin access.
+        </div>
+        
+        <div class="alert" id="alert"></div>
+        
+        <form id="createForm">
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Name:</label>
+                <input type="text" id="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Role:</label>
+                <select id="role">
+                    <option value="analyst">Analyst (View only)</option>
+                    <option value="admin">Admin (Can manage tours)</option>
+                    <option value="super_admin">Super Admin (Full access)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Temporary Password:</label>
+                <input type="password" id="password" placeholder="Min 8 chars, uppercase, lowercase, number" required minlength="8">
+                <small style="color: #6B7280;">Must contain: 8+ chars, uppercase, lowercase, and number. User should change on first login.</small>
+            </div>
+            
+            <button type="submit">Create Admin User</button>
+        </form>
+        
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="dashboard.html" style="color: #667eea;">← Back to Dashboard</a>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        
+        // CHECK PERMISSION ON PAGE LOAD
+        async function checkPermission() {
+            const token = localStorage.getItem('adminToken');
+            const role = localStorage.getItem('adminRole');
+            
+            if (!token || role !== 'super_admin') {
+                document.body.innerHTML = `
+                    <div style="text-align: center; padding: 60px; font-family: Arial;">
+                        <h1 style="color: #991B1B; font-size: 48px;">🚫</h1>
+                        <h2>Access Denied</h2>
+                        <p>Only super admins can create new admin users.</p>
+                        <p><a href="dashboard.html" style="color: #667eea;">Return to Dashboard</a></p>
+                    </div>
+                `;
+                return false;
+            }
+            
+            // Verify token is still valid
+            try {
+                const response = await fetch(`${API_BASE}/admin/verify-permission.php?token=${token}&required_role=super_admin`);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    document.body.innerHTML = `
+                        <div style="text-align: center; padding: 60px; font-family: Arial;">
+                            <h1 style="color: #991B1B; font-size: 48px;">🚫</h1>
+                            <h2>Access Denied</h2>
+                            <p>Your session has expired or you don't have super admin permissions.</p>
+                            <p><a href="login.html" style="color: #667eea;">Login Again</a></p>
+                        </div>
+                    `;
+                    return false;
+                }
+            } catch (error) {
+                console.error('Permission check failed:', error);
+            }
+            
+            return true;
+        }
+        
+        // Run permission check before showing form
+        checkPermission();
+        
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const alert = document.getElementById('alert');
+            const email = document.getElementById('email').value;
+            const name = document.getElementById('name').value;
+            const role = document.getElementById('role').value;
+            const password = document.getElementById('password').value;
+            
+            alert.style.display = 'none';
+            
+            // Get admin token
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                alert.className = 'alert error';
+                alert.textContent = 'You must be logged in as admin';
+                alert.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/create-admin.php`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ token, email, name, role, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert.className = 'alert success';
+                    alert.textContent = `✅ Admin created successfully! Email: ${email}`;
+                    alert.style.display = 'block';
+                    document.getElementById('createForm').reset();
+                } else {
+                    alert.className = 'alert error';
+                    alert.textContent = data.error || 'Failed to create admin';
+                    alert.style.display = 'block';
+                }
+            } catch (error) {
+                alert.className = 'alert error';
+                alert.textContent = 'Network error: ' + error.message;
+                alert.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

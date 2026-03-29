@@ -1,0 +1,3438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discover Lichfield - Interactive City Guide</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/",
+            "@mkkellogg/gaussian-splats-3d": "https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.0/build/gaussian-splats-3d.module.js"
+        }
+    }
+    </script>
+    
+    <!-- Load all feature modules -->
+    <script src="js/config.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/location-tracking.js"></script>
+    <script src="js/audio-player.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: #f8f9fa;
+            overflow-x: hidden;
+            overflow-y: hidden; /* Prevent scroll below map */
+            height: 100vh; /* Lock to viewport height */
+            position: fixed; /* Prevent mobile browser UI issues */
+            width: 100%;
+        }
+
+        .header {
+            background: #231F20;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-image {
+            height: 50px;
+            width: auto;
+        }
+
+        .logo-text h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .logo-text p {
+            font-size: 13px;
+            color: #B92F7B;
+            margin: 0;
+        }
+
+        .nav {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            background: #B92F7B;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-button:hover {
+            background: #9A2666;
+            transform: translateY(-1px);
+        }
+
+        .nav-button.active {
+            background: #7B1E52;
+            box-shadow: 0 0 0 2px #B92F7B;
+        }
+
+        .route-select {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #B92F7B 0%, #9A2666 100%);
+            border: 3px solid #B92F7B;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            min-width: 240px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(185, 47, 123, 0.3);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            text-align: center;
+            background-image: linear-gradient(135deg, #B92F7B 0%, #9A2666 100%), 
+                              url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat, no-repeat;
+            background-position: center, right 12px center;
+            padding-right: 40px;
+        }
+
+        .route-select:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(185, 47, 123, 0.4);
+        }
+
+        .route-select:focus {
+            outline: none;
+            border-color: #231F20;
+            box-shadow: 0 0 0 3px rgba(184, 164, 121, 0.2);
+        }
+
+        .route-select option {
+            padding: 8px;
+            color: #231F20;
+            background: white;
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 74px);
+            background: #e0e7ed;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* Fix zoom buttons position - move down from header */
+        .leaflet-top.leaflet-left {
+            top: 180px !important;
+        }
+
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #e0e7ed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: #231F20;
+        }
+
+        .loading-screen.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #B92F7B;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-overlay {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            max-width: 90%;
+        }
+
+        .info-card {
+            background: white;
+            padding: 16px 20px;
+            padding-top: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 450px;
+            width: 100%;
+            pointer-events: auto;
+            border-left: 4px solid #B92F7B;
+            position: relative;
+        }
+        }
+
+        .info-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #231F20;
+        }
+
+        .info-card p {
+            margin: 0;
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .stats-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            gap: 32px;
+            z-index: 10;
+            border-top: 3px solid #B92F7B;
+            transition: transform 0.3s ease;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #B92F7B;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .custom-marker {
+            background: none;
+            border: none;
+        }
+
+        .marker-pin {
+            width: 30px;
+            height: 42px;
+            position: relative;
+            background: #B92F7B;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+
+        .marker-pin:hover {
+            background: #9A2666;
+            transform: rotate(-45deg) scale(1.1);
+        }
+
+        .marker-pin.selected {
+            background: #7B1E52;
+            transform: rotate(-45deg) scale(1.2);
+        }
+
+        .marker-pin.on-route {
+            background: #B92F7B;
+        }
+
+        .marker-pin::after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+
+        .marker-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            background: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            color: #231F20;
+        }
+
+        .marker-pin:hover .marker-label,
+        .marker-pin.selected .marker-label {
+            opacity: 1;
+        }
+
+        .route-number {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 20px;
+            height: 20px;
+            background: #231F20;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            transform: rotate(45deg);
+            z-index: 1;
+        }
+        
+        .partner-badge {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            font-size: 16px;
+            z-index: 2;
+        }
+        
+        /* Bus Stop Marker Styles */
+        .bus-stop-marker {
+            background: none;
+            border: none;
+        }
+        
+        .bus-marker-pin {
+            position: relative;
+            width: 40px;
+            height: 50px;
+        }
+        
+        .bus-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid white;
+        }
+        
+        .bus-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.6);
+        }
+        
+        .bus-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #DC2626;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .bus-marker-pin:hover .bus-label {
+            opacity: 1;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(35, 31, 32, 0.7);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            animation: fadeIn 0.2s ease;
+            overflow: hidden;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .landmark-panel {
+            background: white;
+            border-radius: 12px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.3s ease;
+            position: relative;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close-button {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.1);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+            z-index: 10;
+        }
+
+        .close-button:hover {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-header {
+            padding: 24px 24px 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .panel-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #231F20;
+            margin: 0;
+            padding-right: 40px;
+            line-height: 1.3;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e5e7eb;
+            padding: 0 24px;
+            gap: 8px;
+        }
+
+        .tab {
+            background: none;
+            border: none;
+            padding: 14px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s ease;
+        }
+
+        .tab:hover {
+            color: #374151;
+        }
+
+        .tab.active {
+            color: #B92F7B;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #B92F7B;
+        }
+
+        .panel-content {
+            padding: 28px; /* INCREASED: from 24px for more breathing room */
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .description {
+            font-size: 16px;
+            line-height: 1.7;
+            color: #4b5563;
+            margin-bottom: 24px;
+        }
+
+        .image-gallery {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px; /* INCREASED: from 16px to 20px */
+            margin: 24px 0;
+            min-height: 200px;
+        }
+
+        .image-placeholder {
+            aspect-ratio: 4/3;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            min-height: 150px;
+            background-color: #f0f0f0;
+        }
+
+        .image-placeholder:hover {
+            transform: scale(1.02);
+        }
+
+        .image-placeholder::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(184, 164, 121, 0.2) 0%, rgba(35, 31, 32, 0.2) 100%);
+        }
+
+        .image-placeholder span {
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            padding: 8px;
+            text-align: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+
+        .website-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 18px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #B92F7B;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            margin-bottom: 12px; /* ADD: Consistent spacing with buttons */
+            width: 100%; /* ADD: Full width like buttons */
+            justify-content: center; /* ADD: Center content */
+        }
+
+        .website-link:hover {
+            background: #B92F7B;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .info-block {
+            margin-bottom: 20px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            color: #231F20;
+            font-weight: 500;
+        }
+
+        .navigate-button {
+            width: 100%;
+            padding: 16px;
+            background: #B92F7B;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            margin-bottom: 12px;
+        }
+
+        .navigate-button:hover {
+            background: #9A2666;
+            transform: translateY(-1px);
+        }
+
+        .coordinates {
+            text-align: center;
+            font-size: 12px;
+            color: #9ca3af;
+            font-family: monospace;
+        }
+
+        .viewer-3d-container {
+            background: #231F20;
+            border-radius: 12px;
+            min-height: 500px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #viewer3d {
+            width: 100%;
+            height: 500px;
+            border-radius: 12px;
+        }
+
+        .viewer-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .viewer-button {
+            padding: 8px 16px;
+            background: #B92F7B;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .viewer-button:hover {
+            background: #9A2666;
+        }
+
+        .viewer-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 500px;
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .viewer-3d-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.9;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.9; }
+            50% { opacity: 0.6; }
+        }
+
+        .viewer-placeholder p {
+            font-size: 16px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+
+        .viewer-3d-filename {
+            font-size: 13px;
+            font-family: monospace;
+            color: #B92F7B;
+            margin-bottom: 20px;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(184, 164, 121, 0.3);
+            border-top-color: #B92F7B;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-top: 20px;
+        }
+
+        .powered-by {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .map-choice-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(35, 31, 32, 0.85);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .map-choice-modal.show {
+            display: flex;
+        }
+
+        .map-choice-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.3s ease;
+        }
+
+        .map-choice-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #231F20;
+            margin-bottom: 8px;
+        }
+
+        .map-choice-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+
+        .map-button {
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .map-button:hover {
+            border-color: #B92F7B;
+            background: #f9fafb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(184, 164, 121, 0.2);
+        }
+
+        .map-button-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .google-maps-icon {
+            background: #4285F4;
+            color: white;
+        }
+
+        .apple-maps-icon {
+            background: linear-gradient(135deg, #00D4FF 0%, #0055FF 100%);
+            color: white;
+        }
+
+        .map-button-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .map-button-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #231F20;
+        }
+
+        .map-button-desc {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 400;
+        }
+
+        .cancel-button {
+            width: 100%;
+            padding: 12px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 8px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .cancel-button:hover {
+            background: #e5e7eb;
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 10px 16px;
+            }
+
+            .logo-text h1 {
+                font-size: 16px;
+            }
+
+            .logo-text p {
+                display: none;
+            }
+
+            .logo-image {
+                height: 40px;
+            }
+
+            .nav {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            
+            .route-select {
+                flex: 1 1 100%;
+                min-width: 0;
+                order: 1;
+            }
+            
+            /* Group timer and location on same line */
+            #tourInfoBtn {
+                order: 2;
+                flex: 1;
+            }
+            
+            #locationBtn {
+                order: 3;
+                flex: 1;
+            }
+            
+            /* Change City button on its own line */
+            .nav-button:not(#tourInfoBtn):not(#locationBtn) {
+                flex: 1 1 100%;
+                order: 4;
+            }
+
+            .nav-button {
+                padding: 8px 10px;
+                font-size: 11px;
+            }
+
+            .info-overlay {
+                top: 70px;
+                left: 50% !important;
+                right: auto !important;
+                transform: translateX(-50%) !important;
+                max-width: calc(100% - 24px);
+            }
+            
+            /* Mobile specific fixes */
+            .header {
+                padding: 8px 0;
+            }
+            
+            .header-container {
+                flex-direction: column;
+                gap: 10px;
+                padding: 0 12px;
+            }
+            
+            .logo img {
+                max-height: 40px !important;
+            }
+            
+            .nav {
+                width: 100%;
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .route-select {
+                width: 100%;
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+            
+            .nav-button {
+                width: 100%;
+                justify-content: center;
+                font-size: 13px;
+                padding: 8px 16px;
+            }
+            
+            .stats-bar {
+                position: fixed !important;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 8px 10px !important;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+                z-index: 999;
+                display: flex;
+                justify-content: space-around;
+                margin: 0 !important;
+                border-radius: 0 !important;
+            }
+            
+            .stat {
+                flex-direction: column;
+                gap: 2px;
+            }
+            
+            .stat-number {
+                font-size: 18px;
+            }
+            
+            .stat-label {
+                font-size: 11px;
+            }
+            
+            .map-container {
+                height: calc(100vh - 200px) !important;
+                margin-bottom: 60px;
+            }
+
+
+            .info-card {
+                max-width: 100%;
+                padding: 12px 16px;
+            }
+
+            .stats-bar {
+                left: 12px;
+                right: 12px;
+                bottom: 12px;
+                transform: none;
+                gap: 20px;
+                padding: 12px 16px;
+            }
+
+            .stat-number {
+                font-size: 20px;
+            }
+
+            .modal-overlay {
+                padding: 0;
+                align-items: flex-end;
+            }
+
+            .landmark-panel {
+                max-width: 100%;
+                max-height: 90vh;
+                border-radius: 12px 12px 0 0;
+            }
+
+            .panel-title {
+                font-size: 20px;
+            }
+
+            .panel-content {
+                padding: 16px;
+            }
+        }
+
+        /* Force X button visibility */
+        .info-close-btn {
+            position: absolute !important;
+            top: 8px !important;
+            right: 8px !important;
+            background: #f0f0f0 !important;
+            border: none !important;
+            font-size: 28px !important;
+            cursor: pointer !important;
+            color: #666 !important;
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            line-height: 1 !important;
+            z-index: 10000 !important;
+            transition: all 0.2s !important;
+            pointer-events: auto !important;
+        }
+
+        .info-close-btn:hover {
+            background: #B92F7B !important;
+            color: white !important;
+        }
+        /* City Selector Modal */
+        .city-selector-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .city-selector-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .city-selector-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 8px;
+            color: #1F2937;
+        }
+
+        .city-selector-subtitle {
+            text-align: center;
+            color: #6B7280;
+            margin-bottom: 32px;
+            font-size: 16px;
+        }
+
+        .city-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .city-button {
+            background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+            border: 3px solid transparent;
+            border-radius: 16px;
+            padding: 32px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .city-button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            border-color: #B92F7B;
+        }
+
+        .city-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .city-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #1F2937;
+        }
+
+        .city-desc {
+            font-size: 14px;
+            color: #6B7280;
+        }
+
+        .tour-code-section {
+            border-top: 2px solid #E5E7EB;
+            padding-top: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .city-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .city-selector-content {
+                padding: 24px;
+            }
+        }
+
+        /* Floating WhatsApp Button */
+        .floating-whatsapp {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 60px;
+            height: 60px;
+            background: #25D366;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+            z-index: 9999;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .floating-whatsapp:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.6);
+        }
+
+        .floating-whatsapp:active {
+            transform: scale(0.95);
+        }
+
+        /* Pulse animation */
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+            }
+            50% {
+                box-shadow: 0 4px 20px rgba(37, 211, 102, 0.7);
+            }
+        }
+
+        .floating-whatsapp {
+            animation: pulse 2s infinite;
+        }
+
+        /* Shaking bus animation */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+            20%, 40%, 60%, 80% { transform: translateX(3px); }
+        }
+        
+        .shake-bus {
+            animation: shake 0.5s infinite;
+        }
+
+        /* Active Tours Grid */
+        .active-tours-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .tour-button {
+            background: white;
+            border: 3px solid #E5E7EB;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        
+        .tour-button:hover {
+            transform: translateY(-2px);
+            border-color: #B92F7B;
+            box-shadow: 0 4px 12px rgba(185, 47, 123, 0.2);
+        }
+        
+        .tour-button-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-bottom: 8px;
+        }
+        
+        .tour-button-details {
+            display: flex;
+            gap: 16px;
+            font-size: 14px;
+            color: #6B7280;
+        }
+        
+        .tour-button-detail {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .floating-whatsapp {
+                bottom: 20px;
+                right: 20px;
+                width: 56px;
+                height: 56px;
+            }
+        }
+
+        /* Lightbox Styles */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .lightbox.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            animation: zoomIn 0.3s ease;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 48px;
+            font-weight: 300;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            cursor: pointer;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10001;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: rotate(90deg);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes zoomIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .lightbox-close {
+                top: 10px;
+                right: 10px;
+                width: 50px;
+                height: 50px;
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- City Selector Modal -->
+    <div id="citySelectorModal" class="city-selector-modal" style="display:none;">
+        <div class="city-selector-content">
+            <button class="info-close-btn" onclick="document.getElementById('citySelectorModal').style.display='none'" style="position: absolute; top: 20px; right: 20px;">×</button>
+            <h2 class="city-selector-title">Choose Your Tour</h2>
+            <p class="city-selector-subtitle">Select from today's active tours</p>
+            
+            <!-- Active Tours Section -->
+            <div id="activeToursSection" style="display:none; margin-bottom: 24px;">
+                <div id="activeToursGrid" class="active-tours-grid"></div>
+            </div>
+            
+            <p style="color: #6B7280; font-size: 14px; margin-bottom: 12px; text-align: center;">
+                Or browse by city:
+            </p>
+            
+            <div class="city-buttons">
+                <button class="city-button" onclick="window.switchCity('lichfield')">
+                    <div class="city-icon">🏰</div>
+                    <div class="city-name">Lichfield</div>
+                    <div class="city-desc">Historic Cathedral City</div>
+                </button>
+                
+                <button class="city-button" onclick="window.switchCity('york')">
+                    <div class="city-icon">⚔️</div>
+                    <div class="city-name">York</div>
+                    <div class="city-desc">Viking Heritage</div>
+                </button>
+            </div>
+            
+            <div class="tour-code-section">
+                <p style="margin-bottom: 8px; color: #6B7280; font-size: 14px;">Have a tour code?</p>
+                <input type="text" id="tourCodeInput" placeholder="Enter code (e.g., LICH-1218)" 
+                       style="padding: 12px; border: 2px solid #D1D5DB; border-radius: 8px; width: 100%; font-size: 16px; margin-bottom: 12px;">
+                <button onclick="submitTourCode()" style="width: 100%; padding: 12px; background: #B92F7B; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    Submit Code
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tour Ended Modal -->
+    <div id="tourEndedModal" class="city-selector-modal" style="display:none;">
+        <div class="city-selector-content" style="text-align: center; max-width: 400px;">
+            <div style="font-size: 64px; margin-bottom: 20px;">🏁</div>
+            <h2 style="font-size: 28px; margin-bottom: 12px; color: #1F2937;">Tour Ended</h2>
+            <p style="color: #6B7280; margin-bottom: 32px;">Thank you for joining us! We hope you enjoyed the tour.</p>
+            <button onclick="showFeedbackModal()" style="width: 100%; padding: 14px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                Continue
+            </button>
+        </div>
+    </div>
+
+    <!-- Feedback Rating Modal -->
+    <div id="feedbackModal" class="city-selector-modal" style="display:none;">
+        <div class="city-selector-content" style="text-align: center; max-width: 450px;">
+            <h2 style="font-size: 28px; margin-bottom: 12px; color: #1F2937;">How was your tour?</h2>
+            <p style="color: #6B7280; margin-bottom: 24px;">Please rate your experience</p>
+            
+            <div id="starRating" style="font-size: 48px; margin-bottom: 32px; cursor: pointer;">
+                <span class="star" data-rating="1">⭐</span>
+                <span class="star" data-rating="2">⭐</span>
+                <span class="star" data-rating="3">⭐</span>
+                <span class="star" data-rating="4">⭐</span>
+                <span class="star" data-rating="5">⭐</span>
+            </div>
+            
+            <p style="color: #6B7280; font-size: 14px;">Tap a star to rate</p>
+        </div>
+    </div>
+
+    <!-- Feedback Form Modal (1-3 stars) -->
+    <div id="feedbackFormModal" class="city-selector-modal" style="display:none;">
+        <div class="city-selector-content" style="max-width: 500px;">
+            <h2 style="font-size: 24px; margin-bottom: 12px; color: #1F2937;">We'd love your feedback</h2>
+            <p style="color: #6B7280; margin-bottom: 24px;">Help us improve your experience</p>
+            
+            <form id="feedbackForm" onsubmit="submitFeedback(event)">
+                <textarea id="feedbackText" 
+                          placeholder="Tell us what we could do better..." 
+                          style="width: 100%; min-height: 120px; padding: 12px; border: 2px solid #E5E7EB; border-radius: 8px; font-size: 16px; font-family: inherit; margin-bottom: 16px;"
+                          required></textarea>
+                
+                <button type="submit" style="width: 100%; padding: 14px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;">
+                    Submit Feedback
+                </button>
+                
+                <button type="button" onclick="skipFeedback()" style="width: 100%; padding: 14px; background: #E5E7EB; color: #6B7280; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    Skip
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Review Redirect Modal (4-5 stars) -->
+    <div id="reviewModal" class="city-selector-modal" style="display:none;">
+        <div class="city-selector-content" style="text-align: center; max-width: 450px;">
+            <div style="font-size: 64px; margin-bottom: 20px;">⭐</div>
+            <h2 style="font-size: 28px; margin-bottom: 12px; color: #1F2937;">Thank you!</h2>
+            <p style="color: #6B7280; margin-bottom: 24px;">We're thrilled you enjoyed the tour! Would you mind leaving us a review?</p>
+            
+            <a href="https://www.google.com/search?q=TAGart+Lichfield+Tours" target="_blank" 
+               style="display: block; width: 100%; padding: 14px; background: #4285F4; color: white; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600; margin-bottom: 12px;">
+                📝 Leave Google Review
+            </a>
+            
+            <a href="https://www.yelp.com/search?find_desc=TAGart+Tours&find_loc=Lichfield" target="_blank"
+               style="display: block; width: 100%; padding: 14px; background: #D32323; color: white; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600; margin-bottom: 12px;">
+                📝 Leave Yelp Review
+            </a>
+            
+            <button onclick="skipFeedback()" style="width: 100%; padding: 14px; background: #E5E7EB; color: #6B7280; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                Maybe Later
+            </button>
+        </div>
+    </div>
+
+    <!-- 15 Minute Warning Modal -->
+    <div id="warningModal" class="city-selector-modal" style="display:none;">
+        <div class="city-selector-content" style="text-align: center; max-width: 400px;">
+            <div style="font-size: 64px; margin-bottom: 20px;" class="shake-bus">🚌</div>
+            <h2 style="font-size: 28px; margin-bottom: 12px; color: #EF4444;">Time to Head Back!</h2>
+            <p style="color: #6B7280; margin-bottom: 24px; font-size: 18px;">
+                The bus departs in <strong id="warningTimeText">15 minutes</strong>.<br>
+                Please start making your way to the bus stop now.
+            </p>
+            <button onclick="document.getElementById('warningModal').style.display='none'" 
+                    style="width: 100%; padding: 14px; background: #EF4444; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+                Got It!
+            </button>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="header-container">
+            <a href="https://visitlichfield.co.uk/" target="_blank" rel="noopener noreferrer" class="logo" style="text-decoration: none; color: inherit;">
+                <img src="https://visitlichfield.co.uk/wp-content/uploads/2025/05/visit-lichfield-logo.svg" 
+                     alt="Visit Lichfield" 
+                     class="logo-image"
+                     onerror="this.style.display='none'; document.querySelector('.logo-text').style.display='block';">
+                <div class="logo-text" style="display:none;">
+                    <h1>Discover Lichfield</h1>
+                    <p>Interactive City Guide</p>
+                </div>
+            </a>
+            <nav class="nav">
+                <button id="tourInfoBtn" class="nav-button" onclick="showBusStopInfo()" style="display:none; background: #EF4444; font-weight: 700;">
+                    🚌 <span id="headerCountdown">--:--</span>
+                </button>
+                <select id="routeSelect" class="route-select" onchange="handleRouteChange()">
+                    <option value="">🗺️ Choose Walking Route...</option>
+                </select>
+                <button class="nav-button" onclick="showCitySelector()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    🌍 Change City
+                </button>
+                <button id="locationBtn" class="nav-button" onclick="toggleLocation()">
+                    📍 My Location
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <div class="map-container">
+        <div id="loadingScreen" class="loading-screen">
+            <div class="spinner"></div>
+            <p>Loading interactive map...</p>
+        </div>
+        <div id="map"></div>
+
+        <div class="info-overlay" id="infoOverlay">
+            <div class="info-card">
+                <button class="info-close-btn" onclick="closeInfoOverlay()">×</button>
+                <h3 id="infoCardTitle">🗺️ Explore</h3>
+                <p id="infoCardText">Click any landmark marker to discover more about this city's rich heritage</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="landmarkModal" class="modal-overlay" onclick="closeLandmarkPanel(event)">
+        <div class="landmark-panel" onclick="event.stopPropagation()">
+            <button class="close-button" onclick="closeLandmarkPanel()">✕</button>
+            
+            <div class="panel-header">
+                <div id="categoryBadge" class="category-badge"></div>
+                <h2 id="landmarkTitle" class="panel-title"></h2>
+            </div>
+
+            <!-- Tabs removed - single unified view -->
+
+            <div class="panel-content">
+                <!-- 3D Model OR Image Gallery FIRST (Visual First!) -->
+                <div id="viewer3dContainer" class="viewer-3d-container" style="display:none;">
+                    <div id="viewer3dPlaceholder" class="viewer-placeholder">
+                        <div class="viewer-3d-icon">🎭</div>
+                        <p>Loading 3D Model...</p>
+                        <div class="loading-spinner"></div>
+                        <div class="powered-by">TAGart Photogrammetry</div>
+                    </div>
+                    <div id="viewer3d"></div>
+                    <div id="viewerControls" class="viewer-controls" style="display:none;">
+                        <button class="viewer-button" onclick="resetCamera()">🔄 Reset View</button>
+                    </div>
+                </div>
+
+                <div id="imageGallery" class="image-gallery"></div>
+
+                <!-- Description (After visual) -->
+                <p id="landmarkDescription" class="description"></p>
+
+                <!-- Audio Player -->
+                <div id="audioPlayerContainer" style="margin-top: 20px;"></div>
+
+                <!-- Visit Info -->
+                <div class="visit-section">
+                    <h3 style="color: #B92F7B; margin-top: 20px; margin-bottom: 10px;">Visit Information</h3>
+                    <div class="info-block">
+                        <div class="info-label">Opening Hours</div>
+                        <div id="openingHours" class="info-value"></div>
+                    </div>
+                    <div class="info-block">
+                        <div class="info-label">Admission</div>
+                        <div id="admissionFee" class="info-value"></div>
+                    </div>
+                    
+                    <a id="websiteLink" class="website-link" target="_blank" rel="noopener noreferrer" style="display:none;">
+                        🌐 Visit Website
+                    </a>
+
+                    <button class="navigate-button" onclick="navigateToLandmark()">
+                        <span>📍</span>
+                        Get Directions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mapChoiceModal" class="map-choice-modal" onclick="closeMapChoice()">
+        <div class="map-choice-content" onclick="event.stopPropagation()">
+            <h3 class="map-choice-title">Choose Navigation App</h3>
+            <p class="map-choice-subtitle">Select which app to open for walking directions</p>
+            
+            <button class="map-button" id="appleMapsButton" onclick="openAppleMaps()">
+                <div class="map-button-icon apple-maps-icon">🍎</div>
+                <div class="map-button-text">
+                    <div class="map-button-label">Apple Maps</div>
+                    <div class="map-button-desc">Native iOS/Mac app</div>
+                </div>
+            </button>
+            
+            <button class="map-button" onclick="openGoogleMaps()">
+                <div class="map-button-icon google-maps-icon">🗺️</div>
+                <div class="map-button-text">
+                    <div class="map-button-label">Google Maps</div>
+                    <div class="map-button-desc">Works everywhere</div>
+                </div>
+            </button>
+            
+            <button class="cancel-button" onclick="closeMapChoice()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div id="imageLightbox" class="lightbox" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()">×</button>
+        <img id="lightboxImage" class="lightbox-content" onclick="event.stopPropagation()" src="" alt="Full size image">
+    </div>
+
+    <!-- Floating WhatsApp Button -->
+    <a href="https://wa.me/447912345678" 
+       id="floatingWhatsApp"
+       class="floating-whatsapp" 
+       target="_blank"
+       title="Contact Tour Guide">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 0C7.164 0 0 7.164 0 16c0 2.824.738 5.472 2.026 7.772L.054 31.947l8.366-2.192A15.919 15.919 0 0016 32c8.836 0 16-7.164 16-16S24.836 0 16 0z" fill="#25D366"/>
+            <path d="M25.926 23.206c-.368 1.038-1.828 1.902-2.988 2.15-.794.166-1.83.298-5.316-1.142-4.466-1.842-7.354-6.38-7.578-6.674-.218-.294-1.806-2.404-1.806-4.584 0-2.18 1.144-3.252 1.55-3.696.406-.444.884-.554 1.178-.554.294 0 .588.006.846.016.27.012.636-.104.994.758.368.886 1.256 3.066 1.366 3.288.11.222.184.48.036.774-.148.294-.222.48-.442.738-.22.258-.462.576-.66.774-.22.22-.45.458-.192.898.258.444 1.148 1.894 2.464 3.066 1.694 1.508 3.122 1.978 3.562 2.2.444.222.702.184.96-.11.258-.294 1.108-1.292 1.404-1.736.294-.444.588-.37.992-.222.406.148 2.572 1.214 3.012 1.436.444.222.738.332.846.516.11.184.11 1.068-.258 2.104z" fill="#fff"/>
+        </svg>
+    </a>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="js/config.js"></script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+        import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+        // Make THREE globally available
+        window.THREE = THREE;
+        window.OrbitControls = OrbitControls;
+        window.PLYLoader = PLYLoader;
+        window.GaussianSplats3D = GaussianSplats3D;
+    </script>
+    <script>
+        // Define functions that HTML buttons call immediately
+        window.closeInfoOverlay = function() {
+            const overlay = document.getElementById('infoOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        };
+        
+        // Load active tours
+        async function loadActiveTours() {
+            try {
+                const response = await fetch('https://apps.tag-art.co.uk/visitlichfield/api/active-tours.php');
+                const data = await response.json();
+                
+                if (data.success && data.tours.length > 0) {
+                    displayActiveTours(data.tours);
+                }
+            } catch (error) {
+                console.error('Failed to load active tours:', error);
+            }
+        }
+        
+        // Display active tours
+        function displayActiveTours(tours) {
+            const section = document.getElementById('activeToursSection');
+            const grid = document.getElementById('activeToursGrid');
+            
+            grid.innerHTML = '';
+            
+            tours.forEach(tour => {
+                const button = document.createElement('button');
+                button.className = 'tour-button';
+        
+                button.onclick = () => selectTour(tour);
+                
+                button.innerHTML = `
+                    <div class="tour-button-title">${tour.display_name} (Code: ${tour.tour_code})</div>
+                    <div style="font-size: 14px; color: #6B7280; margin-bottom: 8px;">Driver: ${tour.driver_name}</div>
+                    <div class="tour-button-details">
+                        <div class="tour-button-detail">
+                            <span>📍</span>
+                            <span>${tour.city_name}</span>
+                        </div>
+                        <div class="tour-button-detail">
+                            <span>🕐</span>
+                            <span>${tour.departure_time}</span>
+                        </div>
+                        <div class="tour-button-detail">
+                            <span>👥</span>
+                            <span>${tour.participant_count}</span>
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(button);
+            });
+            
+            section.style.display = 'block';
+        }
+        
+        // Select a tour
+        function selectTour(tour) {
+            // Clear the "tour ended shown" flag when joining a new tour
+            localStorage.removeItem('tourEndedShownFor');
+            
+            localStorage.setItem('tourCode', tour.tour_code);
+            
+            // Include the city parameter so it loads the correct city
+            const city = tour.current_city_slug || tour.city_slug || 'lichfield';
+            window.location.href = window.location.pathname + '?city=' + city + '&code=' + tour.tour_code;
+        }
+        
+        // Tour code submission
+        window.submitTourCode = function() {
+            const code = document.getElementById('tourCodeInput').value.trim().toUpperCase();
+            if (code) {
+                window.location.href = window.location.pathname + '?code=' + code;
+            }
+        };
+        
+        // Show city selector manually
+        window.showCitySelector = function() {
+            localStorage.removeItem('selectedCity');
+            document.getElementById('citySelectorModal').style.display = 'flex';
+        };
+        
+        // Check if we should show city selector
+        function initApp() {
+            if (window.SHOW_CITY_SELECTOR) {
+                document.getElementById('citySelectorModal').style.display = 'flex';
+                loadActiveTours(); // Load active tours when showing selector
+                return;
+            }
+            
+            // Wait a bit for AppConfig to load
+            if (!window.AppConfig) {
+                setTimeout(initApp, 100);
+                return;
+            }
+            
+            // Only start tour monitoring if we have a tour code
+            const tourCode = localStorage.getItem('tourCode');
+            
+            if (tourCode) {
+                // User is part of an active tour
+                registerWithTour();
+                startTourMonitoring();
+            }
+            
+            // Config loaded, initialize
+            startMainApp();
+        }
+        
+        // Global tour monitoring and countdown
+        let globalDepartureTime = null;
+        let globalTourCode = null;
+        let globalWarningShown = false;
+        let notificationPermission = false;
+        let lastKnownCity = null; // Track city changes
+        
+        // Prevent loop - check if already shown this tour
+        const currentTourCode = localStorage.getItem('tourCode');
+        const shownForTour = localStorage.getItem('tourEndedShownFor');
+        let tourEndedShown = (shownForTour === currentTourCode); // true if already shown for this tour
+        
+        let selectedRating = 0;
+        
+        // Feedback system functions
+        window.showFeedbackModal = function() {
+            tourEndedShown = true; // PREVENT MODAL LOOP
+            
+            // Persist flag across page reloads for this specific tour
+            const tourCode = localStorage.getItem('tourCode');
+            if (tourCode) {
+                localStorage.setItem('tourEndedShownFor', tourCode);
+            }
+            
+            document.getElementById('tourEndedModal').style.display = 'none';
+            document.getElementById('feedbackModal').style.display = 'flex';
+            
+            // Setup star rating
+            const stars = document.querySelectorAll('.star');
+            stars.forEach(star => {
+                star.style.opacity = '0.3';
+                star.onclick = function() {
+                    const rating = parseInt(this.dataset.rating);
+                    selectedRating = rating;
+                    
+                    // Highlight selected stars
+                    stars.forEach((s, i) => {
+                        s.style.opacity = i < rating ? '1' : '0.3';
+                    });
+                    
+                    // IMMEDIATELY save 4-5 star ratings to database
+                    if (rating >= 4) {
+                        const tourCode = globalTourCode || localStorage.getItem('tourCode') || 'UNKNOWN';
+                        
+                        // Save rating without feedback text
+                        fetch('https://apps.tag-art.co.uk/visitlichfield/api/send-feedback.php', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                rating: rating,
+                                feedback: '', // No feedback text for high ratings
+                                tour_code: tourCode,
+                                timestamp: new Date().toISOString()
+                            })
+                        }).catch(error => console.error('Failed to save rating:', error));
+                    }
+                    
+                    // Wait a moment then show appropriate modal
+                    setTimeout(() => {
+                        document.getElementById('feedbackModal').style.display = 'none';
+                        if (rating <= 3) {
+                            document.getElementById('feedbackFormModal').style.display = 'flex';
+                        } else {
+                            document.getElementById('reviewModal').style.display = 'flex';
+                        }
+                    }, 500);
+                };
+            });
+        };
+        
+        window.submitFeedback = async function(event) {
+            event.preventDefault();
+            
+            const feedback = document.getElementById('feedbackText').value;
+            const tourCode = globalTourCode || localStorage.getItem('tourCode') || 'UNKNOWN';
+            
+            try {
+                // Send email via simple PHP script
+                await fetch('https://apps.tag-art.co.uk/visitlichfield/api/send-feedback.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        rating: selectedRating,
+                        feedback: feedback,
+                        tour_code: tourCode,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+            } catch (error) {
+                console.error('Failed to send feedback:', error);
+            }
+            
+            // Clear tour data and redirect to homepage
+            localStorage.removeItem('tourCode');
+            localStorage.removeItem('tourEndedShownFor');
+            document.getElementById('feedbackFormModal').style.display = 'none';
+            setTimeout(() => {
+                window.location.href = '/visitlichfield/';
+            }, 500);
+        };
+        
+        window.skipFeedback = function() {
+            // Clear tour data and redirect to homepage
+            localStorage.removeItem('tourCode');
+            localStorage.removeItem('tourEndedShownFor');
+            
+            // Close all modals
+            document.getElementById('feedbackFormModal').style.display = 'none';
+            document.getElementById('reviewModal').style.display = 'none';
+            
+            setTimeout(() => {
+                window.location.href = '/visitlichfield/';
+            }, 300);
+        };
+        
+        async function startTourMonitoring() {
+            globalTourCode = localStorage.getItem('tourCode');
+            
+            // Don't monitor if no tour code
+            if (!globalTourCode) {
+                return;
+            }
+            
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                const permission = await Notification.requestPermission();
+                notificationPermission = permission === 'granted';
+            } else if ('Notification' in window) {
+                notificationPermission = Notification.permission === 'granted';
+            }
+            
+            // Initial fetch
+            await updateGlobalTourInfo();
+            
+            // Update every 30 seconds
+            setInterval(updateGlobalTourInfo, 10000);
+            
+            // Update header countdown every 10 seconds
+            setInterval(updateHeaderCountdown, 10000);
+            updateHeaderCountdown();
+        }
+        
+        async function updateGlobalTourInfo() {
+            try {
+                const response = await fetch(`https://apps.tag-art.co.uk/visitlichfield/api/tours.php?code=${globalTourCode}&_t=${Date.now()}`);
+                const data = await response.json();
+                
+                if (data.status === 'completed' && !tourEndedShown) {
+                    tourEndedShown = true;
+                    
+                    // Persist flag across page reloads for this specific tour
+                    if (globalTourCode) {
+                        localStorage.setItem('tourEndedShownFor', globalTourCode);
+                    }
+                    
+                    document.getElementById('tourEndedModal').style.display = 'flex';
+                    return;
+                }
+                
+                // Check for city change
+                const currentCity = data.current_city_slug || data.city_slug;
+                if (lastKnownCity && lastKnownCity !== currentCity) {
+                    // City has changed!
+                    handleCitySwitch(currentCity, data.current_city_name || data.city_name);
+                }
+                lastKnownCity = currentCity;
+                
+                if (data.departure_time) {
+                    globalDepartureTime = data.departure_time.substring(0, 5);
+                    document.getElementById('tourInfoBtn').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to update tour info:', error);
+            }
+        }
+        
+        // Handle city switch notification and map update
+        function handleCitySwitch(newCitySlug, newCityName) {
+            console.log(`Tour switched to ${newCityName}`);
+            
+            // Show banner notification
+            showCitySwitchBanner(newCityName);
+            
+            // Clear any active route
+            if (window.activeRoute) {
+                window.activeRoute = null;
+            }
+            
+            // Update localStorage with new city
+            localStorage.setItem('selectedCity', newCitySlug);
+            
+            // Reload the page to switch to new city
+            setTimeout(() => {
+                window.location.href = `index.html?city=${newCitySlug}&code=${globalTourCode}`;
+            }, 3000); // Wait 3 seconds for banner to show
+        }
+        
+        // Show city switch banner
+        function showCitySwitchBanner(cityName) {
+            // Create banner if it doesn't exist
+            let banner = document.getElementById('citySwitchBanner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'citySwitchBanner';
+                banner.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
+                    color: white;
+                    padding: 16px;
+                    text-align: center;
+                    font-size: 18px;
+                    font-weight: 600;
+                    z-index: 10000;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    animation: slideDown 0.3s ease-out;
+                `;
+                document.body.appendChild(banner);
+                
+                // Add animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideDown {
+                        from { transform: translateY(-100%); }
+                        to { transform: translateY(0); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            banner.innerHTML = `🌍 Tour moving to ${cityName}! Updating map...`;
+            banner.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                banner.style.animation = 'slideUp 0.3s ease-out';
+                setTimeout(() => {
+                    banner.style.display = 'none';
+                }, 300);
+            }, 5000);
+        }
+        
+        function updateHeaderCountdown() {
+            if (!globalDepartureTime) return;
+            
+            const now = new Date();
+            const [hours, minutes] = globalDepartureTime.split(':');
+            const departure = new Date();
+            departure.setHours(parseInt(hours), parseInt(minutes), 0);
+            
+            // Don't add a day - let it go negative
+            const diff = departure - now;
+            const diffMinutes = Math.floor(diff / 60000);
+            
+            const headerBtn = document.getElementById('tourInfoBtn');
+            const headerCountdown = document.getElementById('headerCountdown');
+            
+            // Reset warning flag if time increased above 15 minutes
+            if (diffMinutes >= 15 && globalWarningShown) {
+                globalWarningShown = false;
+            }
+            
+            if (diffMinutes < -30) {
+                // More than 30 mins past departure - assume tour ended
+                headerCountdown.textContent = 'Ended';
+                headerBtn.style.background = '#6B7280';
+            } else if (diffMinutes < 0) {
+                // Show negative time
+                headerCountdown.textContent = `${diffMinutes}m`;
+                headerBtn.style.background = '#991B1B';
+                headerBtn.classList.remove('shake-bus'); // Remove shake
+            } else if (diffMinutes < 15) {
+                headerCountdown.textContent = `${diffMinutes}m`;
+                headerBtn.style.background = '#EF4444';
+                headerBtn.classList.add('shake-bus');
+                
+                // Show warning modal once
+                if (!globalWarningShown) {
+                    globalWarningShown = true;
+                    
+                    // Update modal text with actual remaining time
+                    const modalText = document.getElementById('warningTimeText');
+                    if (modalText) {
+                        modalText.textContent = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
+                    }
+                    
+                    document.getElementById('warningModal').style.display = 'flex';
+                    
+                    if (notificationPermission) {
+                        new Notification('🚌 Time to Head Back!', {
+                            body: `The bus departs in ${diffMinutes} minutes. Please return now.`,
+                            icon: '/favicon.ico',
+                            vibrate: [200, 100, 200]
+                        });
+                    }
+                }
+            } else if (diffMinutes < 30) {
+                headerCountdown.textContent = `${diffMinutes}m`;
+                headerBtn.style.background = '#F59E0B';
+                headerBtn.classList.remove('shake-bus'); // Remove shake when 15+ minutes
+                
+                if (diffMinutes === 30 && notificationPermission) {
+                    new Notification('⏰ 30 Minutes Left', {
+                        body: 'The bus departs in 30 minutes.',
+                        icon: '/favicon.ico'
+                    });
+                }
+            } else if (diffMinutes === 60 && notificationPermission) {
+                headerCountdown.textContent = `${diffMinutes}m`;
+                headerBtn.classList.remove('shake-bus'); // Remove shake
+                new Notification('⏰ 1 Hour Left', {
+                    body: 'The bus departs in 1 hour.',
+                    icon: '/favicon.ico'
+                });
+            } else {
+                const diffHours = Math.floor(diffMinutes / 60);
+                const remainingMins = diffMinutes % 60;
+                headerCountdown.textContent = diffHours > 0 ? `${diffHours}h ${remainingMins}m` : `${diffMinutes}m`;
+                headerBtn.style.background = '#059669';
+                headerBtn.classList.remove('shake-bus'); // Remove shake
+            }
+        }
+        
+        window.showTourInfo = function() {
+            // Find bus stop and show its modal
+            if (!window.AppConfig || !window.AppConfig.busStops || window.AppConfig.busStops.length === 0) {
+                // Wait for config to load
+                setTimeout(() => {
+                    if (window.AppConfig && window.AppConfig.busStops && window.AppConfig.busStops.length > 0) {
+                        showBusStopDetails(window.AppConfig.busStops[0]);
+                    } else {
+                        alert('Tour information not available yet. Please wait...');
+                    }
+                }, 1000);
+                return;
+            }
+            const busStop = window.AppConfig.busStops[0];
+            if (busStop) {
+                showBusStopDetails(busStop);
+            }
+        };
+        
+        async function registerWithTour() {
+            const tourCode = localStorage.getItem('tourCode') || 'LICH-TODAY';
+            
+            // Create or get session ID
+            let sessionId = localStorage.getItem('sessionId');
+            if (!sessionId) {
+                sessionId = 'tourist-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('sessionId', sessionId);
+            }
+            
+            try {
+                await fetch('https://apps.tag-art.co.uk/visitlichfield/api/join.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ tour_code: tourCode, session_id: sessionId })
+                });
+            } catch (error) {
+                console.log('Failed to register with tour:', error);
+            }
+        }
+        
+        function startMainApp() {
+            let map;
+            let selectedLandmark = null;
+            let markers = {};
+            let activeRoute = null;
+            let routePolylines = [];
+            let viewer3d = null;
+            let scene, camera, renderer;
+
+            // Use landmarks from config.js
+            const landmarks = window.AppConfig.landmarks;
+            const routes = window.AppConfig.routes;
+            const categoryColors = window.AppConfig.categoryColors;
+            window.categoryColors = categoryColors; // Make global
+
+            function initMap() {
+            try {
+                const mapCenter = window.AppConfig.mapCenter || [52.6825, -1.8290];
+                const mapZoom = window.AppConfig.mapZoom || 15;
+                
+                map = L.map('map', {
+                    zoomControl: true
+                }).setView(mapCenter, mapZoom);
+
+                // Move zoom control to top right
+                map.zoomControl.setPosition('topright');
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                }).addTo(map);
+
+                // Add landmark markers
+                landmarks.forEach(landmark => {
+                    addMarker(landmark);
+                });
+                
+                // Add partner cafe markers
+                if (window.AppConfig.partners) {
+                    window.AppConfig.partners.forEach(partner => {
+                        addMarker(partner);
+                    });
+                }
+                
+                // Add bus stop marker
+                if (window.AppConfig.busStop) {
+                    addBusStopMarker(window.AppConfig.busStop);
+                }
+                
+                // Add public bathroom marker
+                addBathroomMarker();
+
+                // Populate route dropdown
+                populateRouteDropdown();
+                
+                // Update info card with city name
+                const cityName = window.AppConfig.cityName || 'Lichfield';
+                document.getElementById('infoCardTitle').textContent = `🗺️ Explore ${cityName}`;
+                document.getElementById('infoCardText').textContent = 
+                    `Click any landmark marker to discover more about ${cityName}'s rich heritage and view stunning 3D models`;
+
+                document.getElementById('loadingScreen').classList.add('hidden');
+            } catch (error) {
+                console.error('Map initialization error:', error);
+                document.getElementById('loadingScreen').innerHTML = '<p>Error loading map</p>';
+            }
+        }
+
+        function populateRouteDropdown() {
+            const select = document.getElementById('routeSelect');
+            routes.forEach(route => {
+                const option = document.createElement('option');
+                option.value = route.id;
+                option.textContent = `${route.name} - ${route.difficulty} (${route.duration})`;
+                select.appendChild(option);
+            });
+        }
+
+        function handleRouteChange() {
+            const select = document.getElementById('routeSelect');
+            const routeId = parseInt(select.value);
+            
+            if (!routeId) {
+                clearRoute();
+            } else {
+                const route = routes.find(r => r.id === routeId);
+                if (route) {
+                    showRoute(route);
+                    // Track route selection
+                    if (window.Analytics) {
+                        window.Analytics.trackRouteSelected(route);
+                    }
+                }
+            }
+        }
+
+        function addMarker(landmark, routeNumber = null) {
+            const categoryColor = categoryColors[landmark.category] || '#B92F7B';
+            const routeNumberHTML = routeNumber ? `<div class="route-number">${routeNumber}</div>` : '';
+            
+            // Special styling for partners
+            const partnerBadge = landmark.category === 'Partner' ? '<div class="partner-badge">☕</div>' : '';
+            
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: `
+                    <div class="marker-pin" style="background: ${categoryColor};">
+                        ${routeNumberHTML}
+                        ${partnerBadge}
+                        <div class="marker-label">${landmark.name}</div>
+                    </div>
+                `,
+                iconSize: [30, 42],
+                iconAnchor: [15, 42],
+            });
+
+            const marker = L.marker([landmark.lat, landmark.lng], { icon })
+                .addTo(map)
+                .on('click', () => showLandmarkDetails(landmark));
+
+            markers[landmark.id] = marker;
+        }
+
+        function updateMarkerStyles() {
+            const routeLandmarkIds = activeRoute ? activeRoute.landmarks : [];
+            
+            Object.keys(markers).forEach(id => {
+                const marker = markers[id];
+                const isSelected = selectedLandmark && selectedLandmark.id == id;
+                
+                // Find landmark in main landmarks array, partners array, or bus stop
+                let landmark = landmarks.find(l => l.id == id);
+                if (!landmark && window.AppConfig.partners) {
+                    landmark = window.AppConfig.partners.find(p => p.id == id);
+                }
+                if (!landmark && window.AppConfig.busStop && window.AppConfig.busStop.id == id) {
+                    landmark = window.AppConfig.busStop;
+                }
+                
+                // Skip if landmark not found (shouldn't happen but safety check)
+                if (!landmark) return;
+                
+                const routeIndex = routeLandmarkIds.indexOf(parseInt(id));
+                const isOnRoute = routeIndex !== -1;
+                const routeNumber = isOnRoute ? routeIndex + 1 : null;
+                
+                const routeNumberHTML = routeNumber ? `<div class="route-number">${routeNumber}</div>` : '';
+                const extraClass = isSelected ? 'selected' : (isOnRoute ? 'on-route' : '');
+                
+                // Get category color
+                const categoryColor = categoryColors[landmark.category] || '#B92F7B';
+                
+                // Special badge for partners
+                const partnerBadge = landmark.category === 'Partner' ? '<div class="partner-badge">☕</div>' : '';
+                
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `
+                        <div class="marker-pin ${extraClass}" style="background: ${categoryColor};">
+                            ${routeNumberHTML}
+                            ${partnerBadge}
+                            <div class="marker-label">${landmark.name}</div>
+                        </div>
+                    `,
+                    iconSize: [30, 42],
+                    iconAnchor: [15, 42],
+                });
+                
+                marker.setIcon(icon);
+            });
+        }
+        
+        function addBusStopMarker(busStop) {
+            const icon = L.divIcon({
+                className: 'bus-stop-marker',
+                html: `
+                    <div class="bus-marker-pin">
+                        <div class="bus-icon">🚌</div>
+                        <div class="bus-label">${busStop.name}</div>
+                    </div>
+                `,
+                iconSize: [40, 50],
+                iconAnchor: [20, 50],
+            });
+
+            const marker = L.marker([busStop.lat, busStop.lng], { icon })
+                .addTo(map)
+                .on('click', () => showBusStopDetails(busStop));
+
+            markers['bus-stop'] = marker;
+        }
+        
+        // Open bus stop modal from timer button
+        function showBusStopInfo() {
+            if (window.AppConfig && window.AppConfig.busStops && window.AppConfig.busStops[0]) {
+                showBusStopDetails(window.AppConfig.busStops[0]);
+            }
+        }
+        
+        // Add public bathroom marker
+        function addBathroomMarker() {
+            const bathroomIcon = L.divIcon({
+                html: '<div style="font-size: 24px;">🚻</div>',
+                className: 'custom-icon',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            const bathroomMarker = L.marker([52.68419002710006, -1.8290138018301807], { icon: bathroomIcon })
+                .addTo(map)
+                .bindPopup(`
+                    <div style="padding: 8px;">
+                        <strong>Public Toilet</strong><br>
+                        <small>City Centre, Lichfield</small><br>
+                        <small>♿ Accessible • Free</small>
+                    </div>
+                `);
+        }
+        
+        function toggleRoutes() {
+            const currentRoute = activeRoute ? activeRoute.id : 0;
+            const nextRouteId = currentRoute >= routes.length ? 0 : currentRoute + 1;
+            
+            if (nextRouteId === 0) {
+                clearRoute();
+            } else {
+                showRoute(routes[nextRouteId - 1]);
+            }
+        }
+
+        function showRoute(route) {
+            clearRoute();
+            activeRoute = route;
+            
+            // Use waypoints if available, otherwise fall back to direct landmark connection
+            const routeCoords = route.waypoints || route.landmarks.map(landmarkId => {
+                const landmark = landmarks.find(l => l.id === landmarkId);
+                return [landmark.lat, landmark.lng];
+            });
+            
+            // Draw the walking route following streets
+            const polyline = L.polyline(routeCoords, {
+                color: route.color,
+                weight: 6,
+                opacity: 0.9,
+                smoothFactor: 1
+            }).addTo(map);
+            
+            routePolylines.push(polyline);
+            
+            // Add navigation controls to info card
+            const infoCard = document.querySelector('.info-card');
+            if (!document.getElementById('navButton')) {
+                const btn = document.createElement('button');
+                btn.id = 'navButton';
+                btn.innerHTML = '🧭 Open Navigation';
+                btn.style.cssText = 'margin-top: 12px; padding: 10px 16px; background: #B92F7B; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%;';
+                btn.onclick = () => showMapChoice();
+                infoCard.appendChild(btn);
+                
+                // Add AR Navigation button
+                // Add distance display
+                const distDiv = document.createElement('div');
+                distDiv.id = 'nextLandmarkDistance';
+                distDiv.style.cssText = 'margin-top: 12px; padding: 10px; background: #f5f5f5; border-radius: 6px; text-align: center; font-weight: 600; color: #B92F7B;';
+                distDiv.textContent = 'Enable location to see distance';
+                infoCard.appendChild(distDiv);
+            }
+            
+            // Update UI
+            document.getElementById('infoCardText').textContent = 
+                `Following: ${route.name} - ${route.difficulty} (${route.duration}, ${route.distance})`;
+            
+            // Start tracking distance to next landmark
+            startRouteTracking(route);
+            
+            updateMarkerStyles();
+            
+            // Fit map to route bounds
+            map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+        }
+        
+        function startRouteTracking(route) {
+            if (window.routeTrackingInterval) {
+                clearInterval(window.routeTrackingInterval);
+            }
+            
+            window.routeTrackingInterval = setInterval(() => {
+                const userLoc = window.LocationTracker ? window.LocationTracker.getLocation() : null;
+                if (!userLoc || !route) return;
+                
+                // Find next landmark
+                const nextLandmark = landmarks.find(l => l.id === route.landmarks[0]);
+                if (!nextLandmark) return;
+                
+                const distance = window.LocationTracker.calculateDistance(
+                    userLoc.lat, userLoc.lng,
+                    nextLandmark.lat, nextLandmark.lng
+                );
+                
+                const distDiv = document.getElementById('nextLandmarkDistance');
+                if (distDiv) {
+                    distDiv.textContent = `📍 Next: ${nextLandmark.name} - ${
+                        distance < 1000 ? Math.round(distance) + 'm' : (distance/1000).toFixed(1) + 'km'
+                    } away`;
+                }
+            }, 2000);
+        }
+        
+        function navigateToNextLandmark() {
+            if (!activeRoute) return;
+            const nextLandmark = landmarks.find(l => l.id === activeRoute.landmarks[0]);
+            if (nextLandmark && window.ARCamera) {
+                window.ARCamera.start(nextLandmark);
+            }
+        }
+
+        function showMapChoice() {
+            document.getElementById('mapChoiceModal').classList.add('show');
+        }
+
+        function closeMapChoice() {
+            document.getElementById('mapChoiceModal').classList.remove('show');
+        }
+
+        // Lightbox functions
+        window.openLightbox = function(imagePath) {
+            const lightbox = document.getElementById('imageLightbox');
+            const lightboxImage = document.getElementById('lightboxImage');
+            lightboxImage.src = imagePath;
+            lightbox.classList.add('show');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+        }
+
+        window.closeLightbox = function() {
+            const lightbox = document.getElementById('imageLightbox');
+            lightbox.classList.remove('show');
+            document.body.style.overflow = ''; // Restore scrolling
+        }
+
+        function openGoogleMaps() {
+            if (activeRoute) {
+                if (window.Analytics) {
+                    window.Analytics.trackNavigationOpened('google_maps', activeRoute);
+                }
+                window.open(activeRoute.googleMapsUrl, '_blank');
+                closeMapChoice();
+            }
+        }
+
+        function openAppleMaps() {
+            if (activeRoute) {
+                if (window.Analytics) {
+                    window.Analytics.trackNavigationOpened('apple_maps', activeRoute);
+                }
+                window.open(activeRoute.appleMapsUrl, '_blank');
+                closeMapChoice();
+            }
+        }
+
+        function clearRoute() {
+            routePolylines.forEach(line => map.removeLayer(line));
+            routePolylines = [];
+            activeRoute = null;
+            
+            // Stop route tracking
+            if (window.routeTrackingInterval) {
+                clearInterval(window.routeTrackingInterval);
+                window.routeTrackingInterval = null;
+            }
+            
+            // Remove navigation buttons
+            const navBtn = document.getElementById('navButton');
+            if (navBtn) navBtn.remove();
+            const arBtn = document.getElementById('arNavButton');
+            if (arBtn) arBtn.remove();
+            const distDiv = document.getElementById('nextLandmarkDistance');
+            if (distDiv) distDiv.remove();
+            
+            // Reset dropdown
+            document.getElementById('routeSelect').value = '';
+            
+            document.getElementById('infoCardText').textContent = 
+                "Click any landmark marker to discover more about Lichfield's rich heritage and view stunning 3D models";
+            
+            updateMarkerStyles();
+        }
+
+        function showLandmarkDetails(landmark) {
+            selectedLandmark = landmark;
+            
+            // Clear any previous viewer
+            closeViewer();
+            
+            // Update header
+            document.getElementById('categoryBadge').textContent = landmark.category;
+            document.getElementById('categoryBadge').style.background = categoryColors[landmark.category];
+            document.getElementById('landmarkTitle').textContent = landmark.name;
+            document.getElementById('landmarkDescription').textContent = landmark.description;
+            
+            // Special handling for partner locations
+            if (landmark.category === 'Partner') {
+                // Update visit info section for partners
+                const visitSection = document.querySelector('.visit-section');
+                visitSection.innerHTML = `
+                    <h3 style="margin-top: 0;">☕ Partner Cafe Discount</h3>
+                    
+                    <div class="partner-discount-box" style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: 3px dashed #D97706; border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                        <div style="font-size: 18px; font-weight: 700; color: #92400E; margin-bottom: 10px;">
+                            ${landmark.discount}
+                        </div>
+                        ${landmark.discountCode ? `
+                        <div style="font-size: 14px; color: #78350F; margin-bottom: 15px;">
+                            Show this screen to staff:
+                        </div>
+                        <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #D97706; font-size: 24px; font-weight: 700; color: #D97706; letter-spacing: 2px; font-family: 'Courier New', monospace;">
+                            ${landmark.discountCode}
+                        </div>
+                        ` : `
+                        <div style="font-size: 14px; color: #78350F;">
+                            Show this screen to staff to claim your discount
+                        </div>
+                        `}
+                    </div>
+                    
+                    <div class="info-block">
+                        <div class="info-label">Opening Hours</div>
+                        <div class="info-value">${landmark.openingHours}</div>
+                    </div>
+                    <div class="info-block">
+                        <div class="info-label">Phone</div>
+                        <div class="info-value"><a href="tel:${landmark.phone}" style="color: #B92F7B; text-decoration: none;">${landmark.phone}</a></div>
+                    </div>
+                    
+                    <a class="website-link" href="${landmark.website}" target="_blank" rel="noopener noreferrer">
+                        🌐 Visit Website
+                    </a>
+                    
+                    <button class="navigate-button" onclick="navigateToLandmark()">
+                        <span>📍</span>
+                        Get Directions
+                    </button>
+                `;
+            } else {
+                // Regular landmark - restore HTML structure first
+                const visitSection = document.querySelector('.visit-section');
+                visitSection.innerHTML = `
+                    <h3 style="color: #B92F7B; margin-top: 20px; margin-bottom: 10px;">Visit Information</h3>
+                    <div class="info-block">
+                        <div class="info-label">Opening Hours</div>
+                        <div id="openingHours" class="info-value">${landmark.openingHours}</div>
+                    </div>
+                    <div class="info-block">
+                        <div class="info-label">Admission</div>
+                        <div id="admissionFee" class="info-value">${landmark.admissionFee}</div>
+                    </div>
+                    
+                    <a id="websiteLink" class="website-link" href="${landmark.website || '#'}" target="_blank" rel="noopener noreferrer" style="${landmark.website ? '' : 'display:none;'}">
+                        🌐 Visit Website
+                    </a>
+
+                    <button class="navigate-button" onclick="navigateToLandmark()">
+                        <span>📍</span>
+                        Get Directions
+                    </button>
+                `;
+            }
+
+            // Show 3D model AND/OR images
+            const viewer3dContainer = document.getElementById('viewer3dContainer');
+            const gallery = document.getElementById('imageGallery');
+            
+            console.log('Landmark:', landmark.name, 'hasGaussianSplat:', landmark.hasGaussianSplat, 'images:', landmark.images);
+            
+            // Show 3D model if available
+            if (landmark.hasGaussianSplat) {
+                viewer3dContainer.style.display = 'block';
+                setTimeout(() => load3DModel(), 100);
+            } else {
+                viewer3dContainer.style.display = 'none';
+            }
+            
+            // Show image gallery if images exist
+            gallery.innerHTML = '';
+            if (landmark.images && landmark.images.length > 0) {
+                gallery.style.display = 'grid';
+                console.log('Adding', landmark.images.length, 'images');
+                landmark.images.forEach((imgCode) => {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'image-placeholder';
+                    const imgPath = `assets/images/${imgCode}.webp`;
+                    console.log('Loading image:', imgPath);
+                    placeholder.style.backgroundImage = `url('${imgPath}')`;
+                    // Add click handler for lightbox
+                    placeholder.onclick = function() {
+                        openLightbox(imgPath);
+                    };
+                    gallery.appendChild(placeholder);
+                });
+                console.log('Gallery HTML:', gallery.innerHTML);
+            } else {
+                gallery.style.display = 'none';
+                console.log('No images for:', landmark.name);
+            }
+
+            // Audio player (always show if available)
+            const audioContainer = document.getElementById('audioPlayerContainer');
+            if (landmark.audioUrl) {
+                audioContainer.style.display = 'block';
+                if (window.AudioPlayer) {
+                    audioContainer.innerHTML = window.AudioPlayer.create(landmark);
+                }
+            } else {
+                audioContainer.style.display = 'none';
+            }
+
+            // Track analytics
+            if (window.Analytics) {
+                window.Analytics.trackLandmarkViewed(landmark);
+            }
+
+            updateMarkerStyles();
+            document.getElementById('landmarkModal').classList.add('show');
+        }
+
+        function showBusStopDetails(busStop) {
+            selectedLandmark = busStop;
+            
+            // Clear any previous viewer
+            closeViewer();
+            
+            // Get tour code from localStorage or URL
+            const tourCode = localStorage.getItem('tourCode') || 'LICH-TODAY';
+            
+            // Fetch real-time tour info including driver details
+            fetch(`https://apps.tag-art.co.uk/visitlichfield/api/tours.php?code=${tourCode}&_t=${Date.now()}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.departure_time) {
+                        busStop.departureTime = data.departure_time.substring(0, 5); // HH:MM format
+                    }
+                    busStop.tourName = data.display_name || data.city_name + ' Tour';
+                    busStop.driverName = data.driver_name || 'Tour Guide';
+                    
+                    // Get driver photo - use placeholder if not available
+                    busStop.driverPhoto = data.driver_photo 
+                        ? 'https://apps.tag-art.co.uk/visitlichfield/' + data.driver_photo
+                        : 'https://via.placeholder.com/80x80/667eea/ffffff?text=🚌';
+                    
+                    displayBusStopInfo(busStop);
+                })
+                .catch(error => {
+                    console.error('Failed to fetch tour info:', error);
+                    busStop.tourName = 'City Tour';
+                    busStop.driverName = 'Tour Guide';
+                    busStop.driverPhoto = 'https://via.placeholder.com/80x80/667eea/ffffff?text=🚌';
+                    displayBusStopInfo(busStop); // Use default values
+                });
+        }
+        
+        // Make it globally accessible
+        window.showBusStopDetails = showBusStopDetails;
+        
+        function displayBusStopInfo(busStop) {
+            // Update header with bus stop styling
+            document.getElementById('categoryBadge').textContent = 'Bus Stop';
+            document.getElementById('categoryBadge').style.background = categoryColors['BusStop'];
+            document.getElementById('landmarkTitle').textContent = busStop.name;
+            document.getElementById('landmarkDescription').style.display = 'none'; // Hide description for bus stop
+            
+            // CRITICAL: Remove all visual elements from layout
+            const viewer = document.getElementById('viewer3dContainer');
+            const gallery = document.getElementById('imageGallery');
+            const audio = document.getElementById('audioPlayerContainer');
+            
+            viewer.style.display = 'none';
+            viewer.style.height = '0';
+            viewer.style.margin = '0';
+            viewer.style.padding = '0';
+            
+            gallery.style.display = 'none';
+            gallery.style.height = '0';
+            gallery.style.margin = '0';
+            gallery.style.padding = '0';
+            gallery.innerHTML = ''; // Clear any content
+            
+            audio.style.display = 'none';
+            audio.style.height = '0';
+            audio.style.margin = '0';
+            audio.style.padding = '0';
+            
+            // Create special bus stop content
+            const visitSection = document.querySelector('.visit-section');
+            visitSection.style.marginTop = '0'; // Remove top margin
+            
+            // Hide all other content sections in panel
+            const panelContent = document.querySelector('.panel-content');
+            Array.from(panelContent.children).forEach(child => {
+                if (child !== visitSection) {
+                    child.style.display = 'none';
+                }
+            });
+            
+            visitSection.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding: 16px; background: #F3F4F6; border-radius: 12px;">
+                    <img src="${busStop.driverPhoto || 'https://via.placeholder.com/80x80/667eea/ffffff?text=🚌'}" 
+                         alt="Driver" 
+                         style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid #667eea;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">Your Tour Guide</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #1F2937; margin-bottom: 4px;">${busStop.driverName || 'Tour Guide'}</div>
+                        <div style="font-size: 14px; color: #667eea; font-weight: 600;">${busStop.tourName || 'City Tour'}</div>
+                    </div>
+                </div>
+                
+                <h3 style="color: #DC2626; margin-top: 0; margin-bottom: 15px;">🚌 Bus Departure Information</h3>
+                
+                <div class="bus-departure-time" style="background: #FEF2F2; border: 2px solid #DC2626; border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                    <div style="font-size: 14px; color: #991B1B; margin-bottom: 8px;">Scheduled Departure Time</div>
+                    <div style="font-size: 48px; font-weight: 700; color: #DC2626; margin-bottom: 10px;">${busStop.departureTime}</div>
+                    <div id="countdown" style="font-size: 18px; font-weight: 600; color: #991B1B;">Calculating time remaining...</div>
+                </div>
+                
+                <button class="navigate-button" onclick="navigateToLandmark()" 
+                        style="margin-bottom: 12px; background: #DC2626; font-size: 18px; padding: 16px; font-weight: 700;">
+                    <span style="font-size: 24px;">📍</span>
+                    Get Directions to Bus Stop
+                </button>
+                
+                <div style="background: #FEF9C3; border-left: 4px solid #F59E0B; padding: 15px; margin-bottom: 20px; border-radius: 6px;">
+                    <strong style="color: #92400E;">⚠️ Important:</strong>
+                    <p style="margin: 8px 0 0 0; color: #92400E;">Please return 5 minutes before departure. Allow extra time for walking.</p>
+                </div>
+                
+                <a href="https://wa.me/${busStop.whatsappNumber.replace(/\+/g, '')}" 
+                   class="navigate-button" 
+                   target="_blank"
+                   style="background: #25D366; display: flex; align-items: center; justify-content: center; text-decoration: none; margin-bottom: 12px;">
+                    <span style="font-size: 24px; margin-right: 8px;">💬</span>
+                    <span>Call Tour Guide on WhatsApp</span>
+                </a>
+                
+                <div style="font-size: 13px; color: #6B7280; text-align: center; margin-top: 15px;">
+                    Lost? Need help? Click the WhatsApp button to contact us immediately.
+                </div>
+            `;
+            
+            // Start countdown timer
+            startCountdown(busStop.departureTime);
+            
+            // Track analytics
+            if (window.Analytics && window.Analytics.trackLandmarkViewed) {
+                window.Analytics.trackLandmarkViewed({
+                    id: busStop.id,
+                    name: busStop.name,
+                    category: 'BusStop'
+                });
+            }
+
+            updateMarkerStyles();
+            document.getElementById('landmarkModal').classList.add('show');
+        }
+
+        function startCountdown(departureTime) {
+            const countdownEl = document.getElementById('countdown');
+            if (!countdownEl) return;
+            
+            let currentDepartureTime = departureTime;
+            const tourCode = localStorage.getItem('tourCode') || 'LICH-TODAY';
+            
+            let warningShown = false;
+            
+            function updateCountdown() {
+                const now = new Date();
+                const [hours, minutes] = currentDepartureTime.split(':');
+                const departure = new Date();
+                departure.setHours(parseInt(hours), parseInt(minutes), 0);
+                
+                // If departure time has passed, assume it's for tomorrow
+                if (departure < now) {
+                    departure.setDate(departure.getDate() + 1);
+                }
+                
+                const diff = departure - now;
+                const diffMinutes = Math.floor(diff / 60000);
+                const diffHours = Math.floor(diffMinutes / 60);
+                const remainingMins = diffMinutes % 60;
+                
+                // Show 15-minute warning once
+                if (diffMinutes <= 15 && diffMinutes > 0 && !warningShown) {
+                    warningShown = true;
+                    
+                    // Update modal text with actual remaining time
+                    const modalText = document.getElementById('warningTimeText');
+                    if (modalText) {
+                        modalText.textContent = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
+                    }
+                    
+                    document.getElementById('warningModal').style.display = 'flex';
+                    
+                    // Make bus icon shake on map if visible
+                    const busMarkers = document.querySelectorAll('.bus-marker-pin');
+                    busMarkers.forEach(marker => marker.classList.add('shake-bus'));
+                }
+                
+                if (diffMinutes < 0) {
+                    countdownEl.textContent = 'Bus has departed';
+                    countdownEl.style.color = '#991B1B';
+                } else if (diffMinutes < 15) {
+                    countdownEl.textContent = `⚠️ Departs in ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}!`;
+                    countdownEl.style.color = '#DC2626';
+                    countdownEl.style.fontSize = '20px';
+                    countdownEl.style.fontWeight = '700';
+                } else if (diffMinutes < 30) {
+                    countdownEl.textContent = `Departs in ${diffMinutes} minutes`;
+                    countdownEl.style.color = '#F59E0B';
+                } else if (diffHours > 0) {
+                    countdownEl.textContent = `Departs in ${diffHours}h ${remainingMins}m`;
+                    countdownEl.style.color = '#059669';
+                } else {
+                    countdownEl.textContent = `Departs in ${diffMinutes} minutes`;
+                    countdownEl.style.color = '#059669';
+                }
+            }
+            
+            // Sync with API every 10 seconds
+            async function syncDepartureTime() {
+                try {
+                    const response = await fetch(`https://apps.tag-art.co.uk/visitlichfield/api/tours.php?code=${tourCode}&_t=${Date.now()}`);
+                    const data = await response.json();
+                    
+                    // Check if tour has ended
+                    if (data.status === 'completed' && !tourEndedShown) {
+                        tourEndedShown = true;
+                        
+                        // Persist flag across page reloads for this specific tour
+                        if (tourCode) {
+                            localStorage.setItem('tourEndedShownFor', tourCode);
+                        }
+                        
+                        clearInterval(countdownInterval);
+                        clearInterval(syncInterval);
+                        document.getElementById('tourEndedModal').style.display = 'flex';
+                        return;
+                    }
+                    
+                    if (data.departure_time) {
+                        const newTime = data.departure_time.substring(0, 5);
+                        if (newTime !== currentDepartureTime) {
+                            currentDepartureTime = newTime;
+                            // Update the displayed time in the big box
+                            const timeDisplay = document.querySelector('.bus-departure-time > div:nth-child(2)');
+                            if (timeDisplay) {
+                                timeDisplay.textContent = newTime;
+                            }
+                            updateCountdown(); // Immediately update countdown
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to sync departure time:', error);
+                }
+            }
+            
+            updateCountdown();
+            const countdownInterval = setInterval(updateCountdown, 30000); // Update countdown every 30 seconds
+            const syncInterval = setInterval(syncDepartureTime, 10000); // Sync with API every 10 seconds
+            
+            // Clear intervals when modal closes
+            document.getElementById('landmarkModal').addEventListener('click', function clearCountdown(e) {
+                if (e.target.id === 'landmarkModal') {
+                    clearInterval(countdownInterval);
+                    clearInterval(syncInterval);
+                    document.getElementById('landmarkModal').removeEventListener('click', clearCountdown);
+                }
+            });
+        }
+
+        function closeLandmarkPanel(event) {
+            if (event && event.target.id !== 'landmarkModal') return;
+            document.getElementById('landmarkModal').classList.remove('show');
+            selectedLandmark = null;
+            closeViewer();
+            updateMarkerStyles();
+        }
+
+        // Removed switchTab - no longer needed with unified layout
+
+        function navigateToLandmark() {
+            if (!selectedLandmark) return;
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedLandmark.lat},${selectedLandmark.lng}`;
+            window.open(url, '_blank');
+        }
+
+        function load3DModel() {
+            if (!selectedLandmark || !selectedLandmark.hasGaussianSplat) return;
+            
+            // Show viewer container
+            const container = document.getElementById('viewer3dContainer');
+            container.style.display = 'block';
+            
+            // Show placeholder, hide actual viewer initially
+            document.getElementById('viewer3dPlaceholder').style.display = 'flex';
+            document.getElementById('viewer3d').style.display = 'none';
+            document.getElementById('viewerControls').style.display = 'none';
+            
+            // Initialize GaussianSplats3D viewer
+            initGaussianViewer();
+        }
+        
+        // GaussianSplats3D viewer for proper Gaussian splat rendering
+        async function initGaussianViewer() {
+            console.log('🎨 Using GaussianSplats3D renderer');
+            const container = document.getElementById('viewer3d');
+            
+            // Suppress GaussianSplats3D loading spinner errors
+            const originalError = console.error;
+            console.error = function(...args) {
+                const errorStr = args.join(' ');
+                if (!errorStr.includes('removeChild') && !errorStr.includes('LoadingSpinner')) {
+                    originalError.apply(console, args);
+                }
+            };
+            
+            // Create a transparent Three.js scene for the background
+            const threeScene = new THREE.Scene();
+            threeScene.background = null; // Transparent background
+            
+            const viewer = new window.GaussianSplats3D.Viewer({
+                'rootElement': container,
+                'initialCameraPosition': [0, 1, 2.5],
+                'initialCameraLookAt': [0, 0, 0],
+                'cameraUp': [0, 1, 0],
+                'sphericalHarmonicsDegree': 2,
+                'sharedMemoryForWorkers': false,
+                'threeScene': threeScene,
+                'controls': {
+                    'enabled': true,
+                    'enableDamping': true,
+                    'dampingFactor': 0.05,
+                    'rotateSpeed': 0.5,
+                    'zoomSpeed': 0.5
+                }
+            });
+            
+            const splatPath = `assets/splats/${selectedLandmark.splatFile}`;
+            console.log('Loading Gaussian splat from:', splatPath);
+            
+            try {
+                await viewer.addSplatScene(splatPath, {
+                    'splatAlphaRemovalThreshold': 5,
+                    'showLoadingUI': false,  // Disable GaussianSplats3D loading UI (causes error)
+                    'progressiveLoad': true,
+                    'rotation': [1, 0, 0, 0]  // Quaternion: 180° rotation on X-axis
+                });
+                
+                viewer.start();
+                window.currentViewer = viewer;
+                
+                // Enable orbit controls for better interaction
+                if (viewer.controls) {
+                    viewer.controls.enableDamping = true;
+                    viewer.controls.dampingFactor = 0.05;
+                    viewer.controls.screenSpacePanning = false;
+                    viewer.controls.minDistance = 0.5;
+                    viewer.controls.maxDistance = 8;
+                    viewer.controls.maxPolarAngle = Math.PI; // Allow full rotation
+                }
+                
+                document.getElementById('viewer3dPlaceholder').style.display = 'none';
+                container.style.display = 'block';
+                document.getElementById('viewerControls').style.display = 'flex';
+                
+                // Restore console.error
+                console.error = originalError;
+                
+                console.log('✅ Gaussian splat loaded with orbit controls');
+                
+            } catch (error) {
+                console.error('Error loading splat:', error);
+                document.getElementById('viewer3dPlaceholder').innerHTML = 
+                    '<div style="color: #B92F7B;">Failed to load 3D model</div>';
+            }
+            
+            window.addEventListener('resize', () => {
+                if (viewer) viewer.onWindowResize();
+            }, false);
+        }
+        
+        function initThreeViewer() {
+            const container = document.getElementById('viewer3d');
+            
+            if (!window.THREE) {
+                console.error('THREE.js not loaded');
+                return;
+            }
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x231F20);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(3, 2, 3);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+            
+            // OrbitControls
+            const controls = new window.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = false;
+            controls.autoRotateSpeed = 2.0;
+            controls.target.set(0, 0, 0);
+            window.viewerControls = controls;
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            
+            const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight1.position.set(10, 10, 10);
+            scene.add(directionalLight1);
+            
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+            directionalLight2.position.set(-10, 5, -10);
+            scene.add(directionalLight2);
+            
+            // Add ground plane for reference
+            const groundGeometry = new THREE.PlaneGeometry(20, 20);
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x3a3a3a,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.5;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Add grid helper
+            const gridHelper = new THREE.GridHelper(20, 20, 0x666666, 0x444444);
+            gridHelper.position.y = -0.49;
+            scene.add(gridHelper);
+            
+            // Loading indicator
+            const loadingText = createTextSprite('Loading 3D model...', '#B92F7B');
+            loadingText.position.set(0, 2, 0);
+            scene.add(loadingText);
+            
+            // Load the PLY file
+            const loader = new window.PLYLoader();
+            
+            // Construct the path to your PLY file
+            const plyPath = `assets/splats/${selectedLandmark.splatFile}`;
+            
+            console.log('Loading PLY from:', plyPath);
+            
+            loader.load(
+                plyPath,
+                // Success callback
+                function (geometry) {
+                    console.log('PLY loaded successfully');
+                    console.log('Geometry attributes:', Object.keys(geometry.attributes));
+                    scene.remove(loadingText);
+                    
+                    geometry.computeVertexNormals();
+                    
+                    // Check if geometry has colors
+                    const hasColors = geometry.attributes.color !== undefined;
+                    
+                    console.log('Has colors:', hasColors);
+                    if (hasColors) {
+                        console.log('Color attribute:', geometry.attributes.color);
+                        console.log('First 10 color values:', Array.from(geometry.attributes.color.array.slice(0, 30)));
+                        
+                        // Check if colors need normalization (0-255 vs 0-1)
+                        const firstColor = geometry.attributes.color.array[0];
+                        if (firstColor > 1.0) {
+                            console.log('Colors in 0-255 range, normalizing to 0-1...');
+                            const colors = geometry.attributes.color.array;
+                            for (let i = 0; i < colors.length; i++) {
+                                colors[i] = colors[i] / 255.0;
+                            }
+                            geometry.attributes.color.needsUpdate = true;
+                            console.log('Colors normalized');
+                        }
+                    }
+                    
+                    // Create material for the point cloud
+                    const material = new THREE.PointsMaterial({
+                        size: 0.02,  // Larger points for better visibility
+                        vertexColors: true,  // ALWAYS use vertex colors
+                        sizeAttenuation: true,
+                        transparent: false,
+                        opacity: 1.0
+                    });
+                    
+                    // If no color attribute, the PLY doesn't have color data
+                    if (!hasColors) {
+                        console.warn('⚠️ PLY file has NO color data - using gray color');
+                        material.vertexColors = false;
+                        material.color.set(0xaaaaaa);
+                    } else {
+                        console.log('✅ Using vertex colors from PLY');
+                    }
+                    
+                    // Create the points object
+                    const points = new THREE.Points(geometry, material);
+                    
+                    // Center and scale the model
+                    geometry.computeBoundingBox();
+                    const boundingBox = geometry.boundingBox;
+                    const center = boundingBox.getCenter(new THREE.Vector3());
+                    const size = boundingBox.getSize(new THREE.Vector3());
+                    
+                    // Center the model
+                    points.position.sub(center);
+                    
+                    // Scale to fit in view
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scale = 2 / maxDim;
+                    points.scale.setScalar(scale);
+                    
+                    scene.add(points);
+                    window.currentModel = points;
+                    
+                    // Adjust camera to view the model better
+                    controls.target.copy(center.multiplyScalar(scale));
+                    camera.position.set(
+                        center.x * scale + 2,
+                        center.y * scale + 1.5,
+                        center.z * scale + 2
+                    );
+                    
+                    // Add success message
+                    const successText = createTextSprite('✓ Model loaded', '#4a7c59');
+                    successText.position.set(0, size.y * scale + 0.5, 0);
+                    scene.add(successText);
+                    window.successText = successText;
+                    
+                    // Remove success message after 3 seconds
+                    setTimeout(() => {
+                        if (window.successText) {
+                            scene.remove(window.successText);
+                        }
+                    }, 3000);
+                },
+                // Progress callback
+                function (xhr) {
+                    const percentComplete = (xhr.loaded / xhr.total) * 100;
+                    console.log('Loading: ' + Math.round(percentComplete) + '%');
+                },
+                // Error callback
+                function (error) {
+                    console.error('Error loading PLY:', error);
+                    scene.remove(loadingText);
+                    
+                    // Show error message
+                    const errorText = createTextSprite('Failed to load model', '#c74b28');
+                    errorText.position.set(0, 2, 0);
+                    scene.add(errorText);
+                    
+                    const helpText = createTextSprite('Check file path and console', '#999999', 24);
+                    helpText.position.set(0, 1.5, 0);
+                    helpText.scale.set(3, 0.75, 1);
+                    scene.add(helpText);
+                    
+                    // Add fallback placeholder
+                    const geometry = new THREE.BoxGeometry(1, 1.5, 1);
+                    const material = new THREE.MeshStandardMaterial({ 
+                        color: 0xB8A479,
+                        roughness: 0.5,
+                        metalness: 0.2,
+                        wireframe: true
+                    });
+                    const placeholder = new THREE.Mesh(geometry, material);
+                    placeholder.position.y = 0.75;
+                    scene.add(placeholder);
+                }
+            );
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        // Helper function to create text sprites
+        function createTextSprite(text, color, fontSize = 40) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1024;
+            canvas.height = 256;
+            
+            ctx.fillStyle = color;
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 512, 128);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(4, 1, 1);
+            
+            return sprite;
+        }
+
+        function resetCamera() {
+            if (window.currentViewer && window.currentViewer.controls) {
+                // Reset to initial position
+                window.currentViewer.controls.reset();
+            }
+        }
+
+        function closeViewer() {
+            // Clean up GaussianSplats3D viewer
+            if (window.currentViewer) {
+                try {
+                    window.currentViewer.stop();
+                } catch (e) {
+                    console.log('Error stopping viewer:', e);
+                }
+                
+                try {
+                    window.currentViewer.dispose();
+                } catch (e) {
+                    console.log('Error disposing viewer:', e);
+                }
+                
+                window.currentViewer = null;
+            }
+            
+            // Clear the viewer container
+            const viewer3d = document.getElementById('viewer3d');
+            if (viewer3d) {
+                viewer3d.innerHTML = '';
+                viewer3d.style.display = 'none';
+            }
+            
+            // Hide controls
+            const controls = document.getElementById('viewerControls');
+            if (controls) {
+                controls.style.display = 'none';
+            }
+            
+            // Show placeholder again
+            const placeholder = document.getElementById('viewer3dPlaceholder');
+            if (placeholder) {
+                placeholder.style.display = 'flex';
+            }
+            
+            // Reset viewer state
+            window.lastLoadedModel = null;
+            
+            if (window.viewerControls) {
+                if (typeof window.viewerControls.dispose === 'function') {
+                    window.viewerControls.dispose();
+                }
+                window.viewerControls = null;
+            }
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('viewer3d');
+            if (renderer && camera && container) {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        }
+
+        
+        // Location tracking toggle
+        let locationEnabled = false;
+        function toggleLocation() {
+            const btn = document.getElementById('locationBtn');
+            if (!locationEnabled) {
+                if (window.LocationTracker && window.LocationTracker.enable(map)) {
+                    btn.textContent = '📍 Hide Location';
+                    btn.classList.add('active');
+                    locationEnabled = true;
+                }
+            } else {
+                if (window.LocationTracker) {
+                    window.LocationTracker.disable(map);
+                }
+                btn.textContent = '📍 My Location';
+                btn.classList.remove('active');
+                locationEnabled = false;
+            }
+        }
+
+        // AR Navigation function with camera
+        function closeInfoOverlay() {
+            const overlay = document.getElementById('infoOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+        
+        function toggleTranscript(transcriptPath) {
+            const transcript = document.getElementById('audioTranscript');
+            const button = event.target;
+            
+            if (transcript.style.display === 'none') {
+                transcript.style.display = 'block';
+                button.textContent = '📝 Hide Transcript';
+                
+                // Load transcript if not already loaded
+                if (!transcript.dataset.loaded) {
+                    fetch(transcriptPath)
+                        .then(response => response.text())
+                        .then(text => {
+                            transcript.innerHTML = text.split('\n\n').map(p => `<p>${p}</p>`).join('');
+                            transcript.dataset.loaded = 'true';
+                        })
+                        .catch(error => {
+                            transcript.innerHTML = '<p style="color: #999; font-style: italic;">Transcript not available yet.</p>';
+                        });
+                }
+            } else {
+                transcript.style.display = 'none';
+                button.textContent = '📝 Show Transcript';
+            }
+        }
+
+        // Make ALL functions global BEFORE calling initMap
+        window.handleRouteChange = handleRouteChange;
+        window.toggleRoutes = toggleRoutes;
+        window.navigateToNextLandmark = navigateToNextLandmark;
+        window.showMapChoice = showMapChoice;
+        window.closeMapChoice = closeMapChoice;
+        window.openGoogleMaps = openGoogleMaps;
+        window.openAppleMaps = openAppleMaps;
+        window.closeInfoOverlay = closeInfoOverlay;
+        window.toggleTranscript = toggleTranscript;
+        window.showLandmarkDetails = showLandmarkDetails;
+        window.closeLandmarkPanel = closeLandmarkPanel;
+        window.navigateToLandmark = navigateToLandmark;
+        window.resetCamera = resetCamera;
+        window.closeViewer = closeViewer;
+        window.toggleLocation = toggleLocation;
+
+        // Call initMap to actually start the map
+        initMap();
+        }
+        
+        if (typeof L !== 'undefined') {
+            window.addEventListener('DOMContentLoaded', initApp);
+        }
+    </script>
+</body>
+</html>

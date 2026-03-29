@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drivers - Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #F3F4F6;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 { font-size: 28px; }
+        
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        /* Mobile Menu */
+        .mobile-menu-btn { display: none; background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 8px; }
+        .mobile-nav { display: none; position: fixed; top: 0; right: -100%; width: 280px; height: 100vh; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); box-shadow: -2px 0 10px rgba(0,0,0,0.3); z-index: 10001; transition: right 0.3s ease; overflow-y: auto; }
+        .mobile-nav.open { right: 0; }
+        .mobile-nav-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .mobile-nav-header h2 { color: white; font-size: 18px; }
+        .mobile-close-btn { background: none; border: none; color: white; font-size: 32px; cursor: pointer; padding: 0; line-height: 1; }
+        .mobile-nav-links { padding: 10px 0; }
+        .mobile-nav-links a { display: block; color: white; text-decoration: none; padding: 16px 20px; font-weight: 600; font-size: 16px; transition: background 0.2s; }
+        .mobile-nav-links a:hover, .mobile-nav-links a.active { background: rgba(255,255,255,0.2); }
+        .mobile-nav-links .logout-btn { width: calc(100% - 40px); margin: 10px 20px; text-align: center; }
+        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; }
+        .mobile-overlay.open { display: block; }
+        
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; }
+            .header h1 { font-size: 18px; flex: 1; }
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .mobile-nav { display: block; }
+            .container { padding: 20px 16px; }
+            .filters { grid-template-columns: 1fr; }
+            .modal { padding: 10px; }
+            .modal-content { width: 95vw !important; max-width: 95vw !important; max-height: 90vh; overflow-y: auto; padding: 16px; margin: 20px auto; }
+            .modal-header h2 { font-size: 18px; }
+            .driver-info { grid-template-columns: 1fr !important; gap: 12px; }
+            .info-block { padding: 12px; }
+            table { font-size: 12px; }
+            table th, table td { padding: 8px 4px; }
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+        
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 2px solid #E5E7EB;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-success {
+            background: #10B981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-danger {
+            background: #EF4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #DC2626;
+        }
+        
+        .btn-secondary {
+            background: #6B7280;
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-box {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-box .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1F2937;
+        }
+        
+        .stat-box .label {
+            color: #6B7280;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        
+        .stat-box.pending {
+            background: #FEF3C7;
+            border: 2px solid #F59E0B;
+        }
+        
+        .stat-box.pending .value {
+            color: #92400E;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: #F9FAFB;
+        }
+        
+        th {
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #E5E7EB;
+        }
+        
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #E5E7EB;
+            color: #1F2937;
+        }
+        
+        tr:hover {
+            background: #F9FAFB;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+        
+        .status-inactive {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+        
+        .status-pending {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        
+        .rating-stars {
+            color: #F59E0B;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 800px;
+            width: 90%; /* CHANGED: from 100% to prevent overflow */
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+        
+        /* ADD: Mobile responsive modal */
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 95%;
+                max-width: 95%;
+                margin: 0 auto;
+            }
+        }
+        
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #E5E7EB;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            font-size: 24px;
+            color: #1F2937;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6B7280;
+        }
+        
+        .modal-body {
+            padding: 24px;
+        }
+        
+        .info-section {
+            margin-bottom: 24px;
+        }
+        
+        .info-section h3 {
+            font-size: 18px;
+            color: #1F2937;
+            margin-bottom: 12px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .info-item {
+            padding: 12px;
+            background: #F9FAFB;
+            border-radius: 8px;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #6B7280;
+            margin-bottom: 4px;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            color: #1F2937;
+            font-weight: 600;
+        }
+        
+        .list-item {
+            padding: 12px;
+            background: #F9FAFB;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6B7280;
+        }
+        
+        .bulk-actions-bar {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .bulk-info {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .bulk-info span {
+            font-size: 20px;
+            margin: 0 4px;
+        }
+        
+        .bulk-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .bulk-buttons .btn {
+            background: white;
+            color: #1F2937;
+        }
+        
+        .bulk-buttons .btn-success {
+            background: #10B981;
+            color: white;
+        }
+        
+        .bulk-buttons .btn-danger {
+            background: #EF4444;
+            color: white;
+        }
+        
+        .bulk-buttons .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .spinner {
+            border: 4px solid #E5E7EB;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            table {
+                min-width: 900px;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+    <div class="mobile-nav" id="mobileNav">
+        <div class="mobile-nav-header">
+            <h2>Menu</h2>
+            <button class="mobile-close-btn" onclick="closeMobileMenu()">×</button>
+        </div>
+        <div class="mobile-nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html" class="active">👥 Drivers</a>
+            <a href="feedback.html">⭐ Feedback</a>
+            <a href="export.html">📥 Export</a>
+            <a href="analytics.html">📈 Analytics</a>
+            <a href="create-admin.html" id="mobileCreateAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="header">
+        <h1>👥 Driver Management</h1>
+        <div class="nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html" class="active">👥 Drivers</a>
+            <a href="feedback.html">⭐ Feedback</a>
+            <a href="export.html">📥 Export</a>
+            <a href="analytics.html">📈 Analytics</a>
+            <a href="create-admin.html" id="createAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+        <button class="mobile-menu-btn" onclick="openMobileMenu()">☰</button>
+    </div>
+    
+    <div class="container">
+        <div class="filters">
+            <div class="filter-group">
+                <label>Status:</label>
+                <select id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="pending">Pending Approval</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Search:</label>
+                <input type="text" id="searchText" placeholder="Name, email, phone...">
+            </div>
+            
+            <div class="filter-group" style="justify-content: flex-end;">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="loadDrivers()">Apply Filters</button>
+            </div>
+        </div>
+        
+        <div class="stats-row">
+            <div class="stat-box pending" onclick="filterByStatus('pending')">
+                <div class="value" id="pendingDrivers">0</div>
+                <div class="label">⚠️ Pending Approval</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="totalDrivers">0</div>
+                <div class="label">Total Drivers</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="activeDrivers">0</div>
+                <div class="label">Active</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="inactiveDrivers">0</div>
+                <div class="label">Inactive</div>
+            </div>
+        </div>
+        
+        <!-- Bulk Actions Bar -->
+        <div id="bulkActionsBar" class="bulk-actions-bar" style="display:none;">
+            <div class="bulk-info">
+                <span id="selectedCount">0</span> drivers selected
+            </div>
+            <div class="bulk-buttons">
+                <button class="btn btn-success btn-sm" onclick="bulkActivate()">✓ Activate Selected</button>
+                <button class="btn btn-secondary btn-sm" onclick="bulkDeactivate()">⊗ Deactivate Selected</button>
+                <button class="btn btn-danger btn-sm" onclick="bulkDelete()">🗑️ Delete Selected</button>
+                <button class="btn btn-secondary btn-sm" onclick="clearSelection()">✕ Clear Selection</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Loading drivers...</p>
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
+                        </th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Tours</th>
+                        <th>Participants</th>
+                        <th>Rating</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="driversTable">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Driver Details Modal -->
+    <div id="driverModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Driver Details</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        let adminToken = localStorage.getItem('adminToken');
+        let allDrivers = [];
+        
+        if (!adminToken) {
+            window.location.href = 'login.html';
+        }
+        
+        // Show "Create Admin" button ONLY for super admins
+        const adminRole = localStorage.getItem('adminRole');
+        if (adminRole === 'super_admin') {
+            document.getElementById('createAdminBtn').style.display = 'inline-block';
+        }
+        
+        // Load on page load
+        loadDrivers();
+        
+        async function loadDrivers() {
+            const status = document.getElementById('statusFilter').value;
+            const search = document.getElementById('searchText').value;
+            
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                let url = `${API_BASE}/admin/drivers.php?token=${adminToken}`;
+                if (status) url += `&status=${status}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    if (data.error.includes('token')) {
+                        window.location.href = 'login.html';
+                    }
+                    return;
+                }
+                
+                allDrivers = data.drivers;
+                
+                // Update stats
+                document.getElementById('totalDrivers').textContent = allDrivers.length;
+                document.getElementById('pendingDrivers').textContent = data.pending_count;
+                
+                const active = allDrivers.filter(d => d.status === 'active').length;
+                const inactive = allDrivers.filter(d => d.status === 'inactive').length;
+                
+                document.getElementById('activeDrivers').textContent = active;
+                document.getElementById('inactiveDrivers').textContent = inactive;
+                
+                // Display drivers
+                displayDrivers(allDrivers);
+                
+            } catch (error) {
+                console.error('Error loading drivers:', error);
+                alert('Failed to load drivers');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        function displayDrivers(drivers) {
+            const tbody = document.getElementById('driversTable');
+            
+            if (drivers.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 40px; color: #6B7280;">
+                            No drivers found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = drivers.map(driver => {
+                const statusClass = `status-${driver.status}`;
+                const rating = driver.avg_rating ? parseFloat(driver.avg_rating).toFixed(1) : '-';
+                const stars = driver.avg_rating ? '⭐'.repeat(Math.round(driver.avg_rating)) : '';
+                
+                let actions = '';
+                if (driver.status === 'pending' || !driver.email_verified) {
+                    actions = `
+                        <button class="btn btn-success btn-sm" onclick="approveDriver(${driver.id})">✓ Approve</button>
+                        <button class="btn btn-danger btn-sm" onclick="rejectDriver(${driver.id})">✗ Reject</button>
+                    `;
+                } else if (driver.status === 'active') {
+                    actions = `
+                        <button class="btn btn-secondary btn-sm" onclick="deactivateDriver(${driver.id})">Deactivate</button>
+                    `;
+                } else if (driver.status === 'inactive') {
+                    actions = `
+                        <button class="btn btn-success btn-sm" onclick="activateDriver(${driver.id})">Activate</button>
+                    `;
+                }
+                
+                return `
+                    <tr>
+                        <td onclick="event.stopPropagation()">
+                            <input type="checkbox" class="driver-checkbox" value="${driver.id}" onchange="updateBulkActions()" />
+                        </td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;"><strong>${driver.name}</strong></td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;">${driver.email}</td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;">${driver.phone || '-'}</td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;"><span class="status-badge ${statusClass}">${driver.status}</span></td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;">${driver.total_tours} (${driver.active_tours} active)</td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;">${driver.total_participants}</td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;"><span class="rating-stars">${stars}</span> ${rating}</td>
+                        <td onclick="viewDriverDetails(${driver.id})" style="cursor: pointer;">${new Date(driver.created_at).toLocaleDateString()}</td>
+                        <td onclick="event.stopPropagation()">
+                            <div class="actions">
+                                ${actions}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        async function approveDriver(driverId) {
+            if (!confirm('Approve this driver?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        driver_id: driverId,
+                        action: 'approve'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Driver approved! ✅');
+                    loadDrivers();
+                } else {
+                    alert('Failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error approving driver:', error);
+                alert('Failed to approve driver');
+            }
+        }
+        
+        async function rejectDriver(driverId) {
+            if (!confirm('Reject and delete this driver application? This cannot be undone.')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        driver_id: driverId,
+                        action: 'reject'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Driver application rejected');
+                    loadDrivers();
+                } else {
+                    alert('Failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error rejecting driver:', error);
+                alert('Failed to reject driver');
+            }
+        }
+        
+        async function activateDriver(driverId) {
+            if (!confirm('Activate this driver?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        driver_id: driverId,
+                        action: 'activate'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Driver activated! ✅');
+                    loadDrivers();
+                } else {
+                    alert('Failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error activating driver:', error);
+                alert('Failed to activate driver');
+            }
+        }
+        
+        async function deactivateDriver(driverId) {
+            if (!confirm('Deactivate this driver? They will not be able to create new tours.')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        driver_id: driverId,
+                        action: 'deactivate'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Driver deactivated');
+                    loadDrivers();
+                } else {
+                    alert('Failed: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error deactivating driver:', error);
+                alert('Failed to deactivate driver');
+            }
+        }
+        
+        async function viewDriverDetails(driverId) {
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}&driver_id=${driverId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                showDriverModal(data);
+                
+            } catch (error) {
+                console.error('Error loading driver details:', error);
+                alert('Failed to load driver details');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        function showDriverModal(data) {
+            const driver = data.driver;
+            const recentTours = data.recent_tours;
+            
+            document.getElementById('modalTitle').textContent = driver.name;
+            
+            const avgRating = driver.feedback_count > 0 
+                ? parseFloat(driver.avg_rating).toFixed(1)
+                : 'No ratings yet';
+            
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <div class="info-section">
+                    <h3>Driver Information</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Email</div>
+                            <div class="info-value">${driver.email}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Phone</div>
+                            <div class="info-value">${driver.phone || 'Not provided'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Status</div>
+                            <div class="info-value">
+                                <span class="status-badge status-${driver.status}">${driver.status}</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Email Verified</div>
+                            <div class="info-value">${driver.email_verified ? '✅ Yes' : '❌ No'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Joined</div>
+                            <div class="info-value">${new Date(driver.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Last Login</div>
+                            <div class="info-value">${driver.last_login ? new Date(driver.last_login).toLocaleDateString() : 'Never'}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section">
+                    <h3>Statistics</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Total Tours</div>
+                            <div class="info-value">${driver.total_tours}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Active Tours</div>
+                            <div class="info-value">${driver.active_tours}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Completed Tours</div>
+                            <div class="info-value">${driver.completed_tours}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Total Participants</div>
+                            <div class="info-value">${driver.total_participants}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Average Rating</div>
+                            <div class="info-value">
+                                <span class="rating-stars">${driver.avg_rating ? '⭐'.repeat(Math.round(driver.avg_rating)) : ''}</span>
+                                ${avgRating}
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Feedback Count</div>
+                            <div class="info-value">${driver.feedback_count}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section">
+                    <h3>Recent Tours (${recentTours.length})</h3>
+                    ${recentTours.length > 0 ? recentTours.map(tour => `
+                        <div class="list-item">
+                            <strong>${tour.display_name || tour.city_name + ' Tour'}</strong> (${tour.tour_code})<br>
+                            <small>
+                                📅 ${new Date(tour.tour_date).toLocaleDateString()} • 
+                                <span class="status-badge status-${tour.status}">${tour.status}</span> • 
+                                ${tour.participant_count} participants
+                            </small>
+                        </div>
+                    `).join('') : '<p style="color: #6B7280;">No tours yet</p>'}
+                </div>
+            `;
+            
+            document.getElementById('driverModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('driverModal').style.display = 'none';
+        }
+        
+        function filterByStatus(status) {
+            document.getElementById('statusFilter').value = status;
+            loadDrivers();
+        }
+        
+        // Close modal on background click
+        window.onclick = function(event) {
+            const modal = document.getElementById('driverModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'login.html';
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.driver-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            updateBulkActions();
+        }
+        
+        function updateBulkActions() {
+            const checkboxes = document.querySelectorAll('.driver-checkbox:checked');
+            const count = checkboxes.length;
+            const bulkBar = document.getElementById('bulkActionsBar');
+            const selectAll = document.getElementById('selectAll');
+            
+            if (count > 0) {
+                bulkBar.style.display = 'flex';
+                document.getElementById('selectedCount').textContent = count;
+            } else {
+                bulkBar.style.display = 'none';
+            }
+            
+            // Update select all checkbox state
+            const allCheckboxes = document.querySelectorAll('.driver-checkbox');
+            selectAll.checked = count === allCheckboxes.length && count > 0;
+        }
+        
+        function getSelectedDriverIds() {
+            const checkboxes = document.querySelectorAll('.driver-checkbox:checked');
+            return Array.from(checkboxes).map(cb => parseInt(cb.value));
+        }
+        
+        function clearSelection() {
+            document.querySelectorAll('.driver-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateBulkActions();
+        }
+        
+        async function bulkActivate() {
+            const ids = getSelectedDriverIds();
+            if (ids.length === 0) return;
+            
+            if (!confirm(`Activate ${ids.length} driver(s)?`)) return;
+            
+            let success = 0;
+            let failed = 0;
+            
+            for (const id of ids) {
+                try {
+                    const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ driver_id: id, action: 'activate' })
+                    });
+                    const data = await response.json();
+                    if (data.success) success++;
+                    else failed++;
+                } catch (error) {
+                    failed++;
+                }
+            }
+            
+            alert(`✅ ${success} activated, ❌ ${failed} failed`);
+            clearSelection();
+            loadDrivers();
+        }
+        
+        async function bulkDeactivate() {
+            const ids = getSelectedDriverIds();
+            if (ids.length === 0) return;
+            
+            if (!confirm(`Deactivate ${ids.length} driver(s)?`)) return;
+            
+            let success = 0;
+            let failed = 0;
+            
+            for (const id of ids) {
+                try {
+                    const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ driver_id: id, action: 'deactivate' })
+                    });
+                    const data = await response.json();
+                    if (data.success) success++;
+                    else failed++;
+                } catch (error) {
+                    failed++;
+                }
+            }
+            
+            alert(`✅ ${success} deactivated, ❌ ${failed} failed`);
+            clearSelection();
+            loadDrivers();
+        }
+        
+        async function bulkDelete() {
+            const ids = getSelectedDriverIds();
+            if (ids.length === 0) return;
+            
+            if (!confirm(`DELETE ${ids.length} driver(s)? This cannot be undone!`)) return;
+            
+            let success = 0;
+            let failed = 0;
+            
+            for (const id of ids) {
+                try {
+                    const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}&id=${id}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    if (data.success) success++;
+                    else failed++;
+                } catch (error) {
+                    failed++;
+                }
+            }
+            
+            alert(`✅ ${success} deleted, ❌ ${failed} failed`);
+            clearSelection();
+            loadDrivers();
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'login.html';
+        }
+        
+        window.openMobileMenu = function() {
+            document.getElementById('mobileNav').classList.add('open');
+            document.getElementById('mobileOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        window.closeMobileMenu = function() {
+            document.getElementById('mobileNav').classList.remove('open');
+            document.getElementById('mobileOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        if (adminRole === 'super_admin') {
+            document.getElementById('mobileCreateAdminBtn').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

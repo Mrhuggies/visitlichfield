@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #F3F4F6;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 { font-size: 28px; }
+        
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .mobile-menu-btn { display: none; background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 8px; }
+        .mobile-nav { display: none; position: fixed; top: 0; right: -100%; width: 280px; height: 100vh; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); box-shadow: -2px 0 10px rgba(0,0,0,0.3); z-index: 10001; transition: right 0.3s ease; overflow-y: auto; }
+        .mobile-nav.open { right: 0; }
+        .mobile-nav-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .mobile-nav-header h2 { color: white; font-size: 18px; }
+        .mobile-close-btn { background: none; border: none; color: white; font-size: 32px; cursor: pointer; padding: 0; line-height: 1; }
+        .mobile-nav-links { padding: 10px 0; }
+        .mobile-nav-links a { display: block; color: white; text-decoration: none; padding: 16px 20px; font-weight: 600; font-size: 16px; transition: background 0.2s; }
+        .mobile-nav-links a:hover, .mobile-nav-links a.active { background: rgba(255,255,255,0.2); }
+        .mobile-nav-links .logout-btn { width: calc(100% - 40px); margin: 10px 20px; text-align: center; }
+        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; }
+        .mobile-overlay.open { display: block; }
+        
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; }
+            .header h1 { font-size: 18px; flex: 1; }
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .mobile-nav { display: block; }
+            .container { padding: 20px 16px; }
+            .date-range { flex-direction: column; gap: 12px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+        
+        .date-range {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+        }
+        
+        .date-group {
+            flex: 1;
+        }
+        
+        .date-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .date-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #E5E7EB;
+            border-radius: 6px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .chart-card h3 {
+            font-size: 18px;
+            color: #1F2937;
+            margin-bottom: 16px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6B7280;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .date-range {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+    <div class="mobile-nav" id="mobileNav">
+        <div class="mobile-nav-header">
+            <h2>Menu</h2>
+            <button class="mobile-close-btn" onclick="closeMobileMenu()">×</button>
+        </div>
+        <div class="mobile-nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html">👥 Drivers</a>
+            <a href="feedback.html">⭐ Feedback</a>
+            <a href="export.html">📥 Export</a>
+            <a href="analytics.html" class="active">📈 Analytics</a>
+            <a href="create-admin.html" id="mobileCreateAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="header">
+        <h1>📈 Advanced Analytics</h1>
+        <div class="nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html">👥 Drivers</a>
+            <a href="feedback.html">⭐ Feedback</a>
+            <a href="export.html">📥 Export</a>
+            <a href="analytics.html" class="active">📈 Analytics</a>
+            <a href="create-admin.html" id="createAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+        <button class="mobile-menu-btn" onclick="openMobileMenu()">☰</button>
+    </div>
+    
+    <div class="container">
+        <div class="date-range">
+            <div class="date-group">
+                <label>From Date:</label>
+                <input type="date" id="dateFrom">
+            </div>
+            <div class="date-group">
+                <label>To Date:</label>
+                <input type="date" id="dateTo">
+            </div>
+            <button class="btn btn-primary" onclick="loadAnalytics()">Update Charts</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display:none;">
+            Loading charts...
+        </div>
+        
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>📍 Tours by City</h3>
+                <div class="chart-container">
+                    <canvas id="cityChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <h3>⭐ Rating Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <h3>📊 Tour Status Breakdown</h3>
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <h3>👥 Driver Performance</h3>
+                <div class="chart-container">
+                    <canvas id="driverChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <h3>📈 Tours Over Time</h3>
+                <div class="chart-container">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <h3>👤 Participant Growth</h3>
+                <div class="chart-container">
+                    <canvas id="participantsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        let adminToken = localStorage.getItem('adminToken');
+        
+        if (!adminToken) {
+            window.location.href = 'login.html';
+        }
+        
+        // Show "Create Admin" button ONLY for super admins
+        const adminRole = localStorage.getItem('adminRole');
+        if (adminRole === 'super_admin') {
+            document.getElementById('createAdminBtn').style.display = 'inline-block';
+        }
+        
+        let charts = {};
+        
+        // Set default dates
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+        document.getElementById('dateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
+        
+        loadAnalytics();
+        
+        async function loadAnalytics() {
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                // Fetch all data
+                const [toursRes, driversRes, feedbackRes] = await Promise.all([
+                    fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`),
+                    fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`),
+                    fetch(`${API_BASE}/admin/feedback.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`)
+                ]);
+                
+                const toursData = await toursRes.json();
+                const driversData = await driversRes.json();
+                const feedbackData = await feedbackRes.json();
+                
+                // Create charts
+                createCityChart(toursData.tours);
+                createRatingsChart(feedbackData.feedback);
+                createStatusChart(toursData.tours);
+                createDriverChart(driversData.drivers);
+                createTimelineChart(toursData.tours);
+                createParticipantsChart(toursData.tours);
+                
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                alert('Failed to load analytics');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        function createCityChart(tours) {
+            const cityCount = {};
+            tours.forEach(tour => {
+                const city = tour.current_city_name || tour.city_name;
+                cityCount[city] = (cityCount[city] || 0) + 1;
+            });
+            
+            const ctx = document.getElementById('cityChart');
+            if (charts.city) charts.city.destroy();
+            
+            charts.city = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(cityCount),
+                    datasets: [{
+                        data: Object.values(cityCount),
+                        backgroundColor: [
+                            '#3b82f6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+        
+        function createRatingsChart(feedback) {
+            const ratingCount = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+            feedback.forEach(f => {
+                ratingCount[f.rating] = (ratingCount[f.rating] || 0) + 1;
+            });
+            
+            const ctx = document.getElementById('ratingsChart');
+            if (charts.ratings) charts.ratings.destroy();
+            
+            charts.ratings = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐', '⭐⭐⭐⭐⭐'],
+                    datasets: [{
+                        label: 'Reviews',
+                        data: [ratingCount[1], ratingCount[2], ratingCount[3], ratingCount[4], ratingCount[5]],
+                        backgroundColor: ['#EF4444', '#F59E0B', '#F59E0B', '#10B981', '#10B981']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+        
+        function createStatusChart(tours) {
+            const statusCount = {};
+            tours.forEach(tour => {
+                statusCount[tour.status] = (statusCount[tour.status] || 0) + 1;
+            });
+            
+            const ctx = document.getElementById('statusChart');
+            if (charts.status) charts.status.destroy();
+            
+            charts.status = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCount).map(s => s.charAt(0).toUpperCase() + s.slice(1)),
+                    datasets: [{
+                        data: Object.values(statusCount),
+                        backgroundColor: ['#10B981', '#3b82f6', '#F59E0B', '#6B7280']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+        
+        function createDriverChart(drivers) {
+            // Top 10 drivers by tours
+            const sorted = drivers
+                .filter(d => d.total_tours > 0)
+                .sort((a, b) => b.total_tours - a.total_tours)
+                .slice(0, 10);
+            
+            const ctx = document.getElementById('driverChart');
+            if (charts.driver) charts.driver.destroy();
+            
+            charts.driver = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(d => d.name),
+                    datasets: [{
+                        label: 'Total Tours',
+                        data: sorted.map(d => d.total_tours),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+        
+        function createTimelineChart(tours) {
+            // Group tours by date
+            const dateCount = {};
+            tours.forEach(tour => {
+                const date = tour.tour_date.split(' ')[0];
+                dateCount[date] = (dateCount[date] || 0) + 1;
+            });
+            
+            const sorted = Object.keys(dateCount).sort();
+            
+            const ctx = document.getElementById('timelineChart');
+            if (charts.timeline) charts.timeline.destroy();
+            
+            charts.timeline = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sorted.map(d => new Date(d).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Tours',
+                        data: sorted.map(d => dateCount[d]),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+        
+        function createParticipantsChart(tours) {
+            // Group participants by date
+            const dateParticipants = {};
+            tours.forEach(tour => {
+                const date = tour.tour_date.split(' ')[0];
+                dateParticipants[date] = (dateParticipants[date] || 0) + parseInt(tour.participant_count || 0);
+            });
+            
+            const sorted = Object.keys(dateParticipants).sort();
+            
+            // Calculate cumulative
+            let cumulative = 0;
+            const cumulativeData = sorted.map(d => {
+                cumulative += dateParticipants[d];
+                return cumulative;
+            });
+            
+            const ctx = document.getElementById('participantsChart');
+            if (charts.participants) charts.participants.destroy();
+            
+            charts.participants = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sorted.map(d => new Date(d).toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'Daily Participants',
+                            data: sorted.map(d => dateParticipants[d]),
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Cumulative Total',
+                            data: cumulativeData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'login.html';
+        }
+        
+        window.openMobileMenu = function() {
+            document.getElementById('mobileNav').classList.add('open');
+            document.getElementById('mobileOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        window.closeMobileMenu = function() {
+            document.getElementById('mobileNav').classList.remove('open');
+            document.getElementById('mobileOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        if (adminRole === 'super_admin') {
+            document.getElementById('mobileCreateAdminBtn').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

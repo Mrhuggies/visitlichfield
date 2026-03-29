@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Tour - Driver Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .back-btn:hover {
+            transform: translateX(-4px);
+        }
+        
+        .form-card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            font-size: 28px;
+            color: #1F2937;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            color: #6B7280;
+            margin-bottom: 32px;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .error {
+            background: #FEE2E2;
+            color: #991B1B;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .helper-text {
+            font-size: 14px;
+            color: #6B7280;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <a href="driver-tour-select.html" class="back-btn" style="margin: 0;">
+                ← Back to My Tours
+            </a>
+            <a href="driver-profile.html" style="background: #667eea; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                👤 My Profile
+            </a>
+        </div>
+        
+        <div class="form-card">
+            <h1>Create New Tour</h1>
+            <p class="subtitle">Set up a new tour for today</p>
+            
+            <div class="error" id="errorMsg"></div>
+            
+            <form id="createTourForm">
+                <div class="form-group">
+                    <label for="city">City *</label>
+                    <select id="city" required>
+                        <option value="">Select a city...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="displayName">Tour Name *</label>
+                    <input type="text" id="displayName" required 
+                           placeholder="e.g., Morning Cathedral Tour">
+                    <p class="helper-text">This is what tourists will see when selecting your tour</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="departureTime">Departure Time *</label>
+                    <input type="time" id="departureTime" required>
+                    <p class="helper-text">When will the bus depart?</p>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    Create Tour
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        let driverToken = localStorage.getItem('driverToken');
+        
+        // Check auth
+        if (!driverToken) {
+            window.location.href = 'driver-login.html';
+        }
+        
+        // Load cities
+        async function loadCities() {
+            try {
+                const response = await fetch(`${API_BASE}/tours.php?code=LICH-TODAY`);
+                const data = await response.json();
+                
+                // Hardcode cities for now
+                const cities = [
+                    { id: 1, name: 'Lichfield', slug: 'lichfield' },
+                    { id: 2, name: 'York', slug: 'york' }
+                ];
+                
+                const select = document.getElementById('city');
+                cities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city.id;
+                    option.textContent = city.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load cities:', error);
+            }
+        }
+        
+        // Handle form submission
+        document.getElementById('createTourForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            errorMsg.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+            
+            try {
+                const formData = {
+                    city_id: parseInt(document.getElementById('city').value),
+                    display_name: document.getElementById('displayName').value,
+                    departure_time: document.getElementById('departureTime').value + ':00',
+                    duration_minutes: 120 // Default 2 hours
+                };
+                
+                const response = await fetch(`${API_BASE}/create-tour.php`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Driver-Token': driverToken
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to create tour');
+                }
+                
+                // Success! Redirect to tour selection
+                alert(`Tour created! Code: ${data.tour_code}`);
+                window.location.href = 'driver-tour-select.html';
+                
+            } catch (error) {
+                errorMsg.textContent = error.message;
+                errorMsg.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Create Tour';
+            }
+        });
+        
+        // Load cities on page load
+        loadCities();
+    </script>
+</body>
+</html>

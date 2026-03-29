@@ -1,0 +1,9 @@
+Look up. You are standing before the only medieval cathedral in the UK with three spires. Known affectionately as the "Ladies of the Vale," these sandstone peaks have dominated the Staffordshire skyline for over 700 years. But don't let their delicate appearance fool you—this building is a survivor of one of the most violent periods in English history.
+
+During the English Civil War in the 1640s, the Cathedral became a literal fortress. Because it was surrounded by a moat and defensive walls, it was besieged three separate times. Here’s a staggering fact: in 1643, Prince Rupert’s engineers used an explosive mine to breach the walls here. It is believed to be the first time an explosive landmine was ever used in English warfare. The central spire was actually blown out and collapsed entirely during the fighting.
+
+When you step inside and walk to the Lady Chapel at the far end, look at the windows. This isn’t original English glass—it’s a rescue story. In 1803, a local baronet bought this 16th-century Renaissance glass from an abbey in Belgium to save it from the Napoleonic Wars. It is now considered one of the greatest art treasures in Europe, and there is actually more original 16th-century Flemish glass here than survives in Belgium itself!
+
+Lichfield still keeps secrets. In 2003, while workmen were preparing to install a new lift in the floor, they discovered something incredible: the Lichfield Angel. It’s an Anglo-Saxon stone carving from the year 800, still bearing traces of its original red and white paint. It had been buried for a thousand years, likely to protect it from Viking raids or the Reformation.
+
+As you walk through the nave, look for the "pockmarks" on the exterior walls—those are scars from Civil War musket balls and cannons. This isn't just a church; it’s a monument to a city that refuses to stay down.

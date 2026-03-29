@@ -1,0 +1,9 @@
+Welcome to the home of a man who was, quite literally, ahead of his time. This is the house of Dr. Erasmus Darwin. While his grandson, Charles, became a household name for the theory of evolution, the ideas actually started right here in this Georgian townhouse. Erasmus was a physician, a poet, and an inventor who seemed to have a finger in every pie of the 18th-century Enlightenment.
+
+This house wasn't just a home; it was a "think tank." Erasmus was a founding member of the Lunar Society—a group of geniuses who met during the full moon so they could see their way home in the dark. Imagine sitting in this parlor with people like Josiah Wedgwood, Matthew Boulton, and even Benjamin Franklin, debating everything from steam engines to the origins of life while the rest of the world was still traveling by horseback.
+
+Erasmus was such a brilliant doctor that King George III personally asked him to move to London to be the Royal Physician. Most people would have jumped at the chance, but Erasmus said "no." He preferred his life in Lichfield, treating the local poor for free and spending his nights working on inventions like a mechanical "speaking machine" and a vertical-axis windmill.
+
+[The Evolution Connection] Inside, you’ll find his book, Zoonomia. Written decades before The Origin of Species, it contains the first inklings of evolutionary theory. He even had a personal motto: "Everything from shells," reflecting his belief that all life shared a common ancestor. He eventually had to paint over the motto on his carriage because the local Cathedral officials found it a bit too scandalous!
+
+Before you leave, don't miss the Apothecary Garden at the back. It’s filled with the exact medicinal herbs Erasmus used to treat his patients. As you walk through, think of the man who refused a King’s offer just to stay in the city he loved.

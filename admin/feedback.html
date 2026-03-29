@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback & Reviews - Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #F3F4F6;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 { font-size: 28px; }
+        
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .mobile-menu-btn { display: none; background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 8px; }
+        .mobile-nav { display: none; position: fixed; top: 0; right: -100%; width: 280px; height: 100vh; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); box-shadow: -2px 0 10px rgba(0,0,0,0.3); z-index: 10001; transition: right 0.3s ease; overflow-y: auto; }
+        .mobile-nav.open { right: 0; }
+        .mobile-nav-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .mobile-nav-header h2 { color: white; font-size: 18px; }
+        .mobile-close-btn { background: none; border: none; color: white; font-size: 32px; cursor: pointer; padding: 0; line-height: 1; }
+        .mobile-nav-links { padding: 10px 0; }
+        .mobile-nav-links a { display: block; color: white; text-decoration: none; padding: 16px 20px; font-weight: 600; font-size: 16px; transition: background 0.2s; }
+        .mobile-nav-links a:hover, .mobile-nav-links a.active { background: rgba(255,255,255,0.2); }
+        .mobile-nav-links .logout-btn { width: calc(100% - 40px); margin: 10px 20px; text-align: center; }
+        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; }
+        .mobile-overlay.open { display: block; }
+        
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; }
+            .header h1 { font-size: 18px; flex: 1; }
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .mobile-nav { display: block; }
+            .container { padding: 20px 16px; }
+            .filters { grid-template-columns: 1fr; }
+            .feedback-grid { grid-template-columns: 1fr; }
+            table { font-size: 12px; }
+            table th, table td { padding: 8px 4px; }
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+        
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 2px solid #E5E7EB;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #6B7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4B5563;
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-box {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-box .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1F2937;
+        }
+        
+        .stat-box .label {
+            color: #6B7280;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        
+        .feedback-grid {
+            display: grid;
+            gap: 16px;
+        }
+        
+        .feedback-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+        
+        .rating-stars {
+            font-size: 20px;
+            color: #F59E0B;
+        }
+        
+        .feedback-meta {
+            color: #6B7280;
+            font-size: 14px;
+        }
+        
+        .feedback-text {
+            color: #1F2937;
+            line-height: 1.6;
+            margin: 12px 0;
+        }
+        
+        .feedback-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid #E5E7EB;
+            font-size: 14px;
+            color: #6B7280;
+        }
+        
+        .delete-btn {
+            background: #EF4444;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .delete-btn:hover {
+            background: #DC2626;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6B7280;
+        }
+        
+        .spinner {
+            border: 4px solid #E5E7EB;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6B7280;
+        }
+        
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+    <div class="mobile-nav" id="mobileNav">
+        <div class="mobile-nav-header">
+            <h2>Menu</h2>
+            <button class="mobile-close-btn" onclick="closeMobileMenu()">×</button>
+        </div>
+        <div class="mobile-nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html">👥 Drivers</a>
+            <a href="feedback.html" class="active">⭐ Feedback</a>
+            <a href="export.html">📥 Export</a>
+            <a href="analytics.html">📈 Analytics</a>
+            <a href="create-admin.html" id="mobileCreateAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="header">
+        <h1>⭐ Feedback & Reviews</h1>
+        <div class="nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html">👥 Drivers</a>
+            <a href="feedback.html" class="active">⭐ Feedback</a>
+            <a href="export.html">📥 Export</a>
+            <a href="analytics.html">📈 Analytics</a>
+            <a href="create-admin.html" id="createAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+        <button class="mobile-menu-btn" onclick="openMobileMenu()">☰</button>
+    </div>
+    
+    <div class="container">
+        <div class="filters">
+            <div class="filter-group">
+                <label>From Date:</label>
+                <input type="date" id="dateFrom">
+            </div>
+            
+            <div class="filter-group">
+                <label>To Date:</label>
+                <input type="date" id="dateTo">
+            </div>
+            
+            <div class="filter-group">
+                <label>Rating:</label>
+                <select id="ratingFilter">
+                    <option value="">All Ratings</option>
+                    <option value="5">⭐⭐⭐⭐⭐ (5 stars)</option>
+                    <option value="4">⭐⭐⭐⭐ (4 stars)</option>
+                    <option value="3">⭐⭐⭐ (3 stars)</option>
+                    <option value="2">⭐⭐ (2 stars)</option>
+                    <option value="1">⭐ (1 star)</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Search Text:</label>
+                <input type="text" id="searchText" placeholder="Search feedback...">
+            </div>
+            
+            <div class="filter-buttons">
+                <button class="btn btn-primary" onclick="loadFeedback()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="exportCSV()">Export CSV</button>
+            </div>
+        </div>
+        
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="value" id="totalFeedback">0</div>
+                <div class="label">Total Feedback</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="avgRating">0.0</div>
+                <div class="label">Average Rating</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="fiveStars">0</div>
+                <div class="label">⭐⭐⭐⭐⭐</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="fourStars">0</div>
+                <div class="label">⭐⭐⭐⭐</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="threeStars">0</div>
+                <div class="label">⭐⭐⭐</div>
+            </div>
+            <div class="stat-box">
+                <div class="value" id="lowStars">0</div>
+                <div class="label">⭐⭐ or less</div>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Loading feedback...</p>
+        </div>
+        
+        <div id="feedbackContainer" class="feedback-grid"></div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        let adminToken = localStorage.getItem('adminToken');
+        let allFeedback = [];
+        
+        if (!adminToken) {
+            window.location.href = 'login.html';
+        }
+        
+        // Set default dates
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+        document.getElementById('dateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
+        
+        // Show "Create Admin" button ONLY for super admins
+        const adminRole = localStorage.getItem('adminRole');
+        if (adminRole === 'super_admin') {
+            document.getElementById('createAdminBtn').style.display = 'inline-block';
+        }
+        
+        // Load on page load
+        loadFeedback();
+        
+        async function loadFeedback() {
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const rating = document.getElementById('ratingFilter').value;
+            const search = document.getElementById('searchText').value;
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('feedbackContainer').style.display = 'none';
+            
+            try {
+                let url = `${API_BASE}/admin/feedback.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}`;
+                if (rating) url += `&rating=${rating}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    if (data.error.includes('token')) {
+                        window.location.href = 'login.html';
+                    }
+                    return;
+                }
+                
+                allFeedback = data.feedback;
+                
+                // Update stats
+                document.getElementById('totalFeedback').textContent = data.total;
+                
+                // Calculate average
+                const ratings = data.rating_distribution;
+                let totalStars = 0;
+                let totalCount = 0;
+                for (let rating in ratings) {
+                    totalStars += rating * ratings[rating];
+                    totalCount += ratings[rating];
+                }
+                const avg = totalCount > 0 ? (totalStars / totalCount).toFixed(1) : 0;
+                document.getElementById('avgRating').textContent = avg;
+                
+                // Rating distribution
+                document.getElementById('fiveStars').textContent = ratings[5] || 0;
+                document.getElementById('fourStars').textContent = ratings[4] || 0;
+                document.getElementById('threeStars').textContent = ratings[3] || 0;
+                document.getElementById('lowStars').textContent = (ratings[2] || 0) + (ratings[1] || 0);
+                
+                // Display feedback
+                displayFeedback(allFeedback);
+                
+            } catch (error) {
+                console.error('Error loading feedback:', error);
+                alert('Failed to load feedback');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        function displayFeedback(feedback) {
+            const container = document.getElementById('feedbackContainer');
+            container.style.display = 'grid';
+            
+            if (feedback.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">💬</div>
+                        <h2>No Feedback Yet</h2>
+                        <p>Feedback will appear here once tourists submit reviews</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = feedback.map(item => `
+                <div class="feedback-card">
+                    <div class="feedback-header">
+                        <div>
+                            <div class="rating-stars">${'⭐'.repeat(item.rating)}</div>
+                            <div class="feedback-meta">
+                                ${item.tour_name || item.city_name + ' Tour'} • ${item.tour_code}
+                            </div>
+                        </div>
+                        <button class="delete-btn" onclick="deleteFeedback(${item.id})">🗑️ Delete</button>
+                    </div>
+                    
+                    <div class="feedback-text">
+                        "${item.feedback_text}"
+                    </div>
+                    
+                    <div class="feedback-footer">
+                        <span>
+                            📍 ${item.city_name} • 
+                            👤 Driver: ${item.driver_name || 'Unknown'} • 
+                            📅 ${new Date(item.tour_date).toLocaleDateString()}
+                        </span>
+                        <span>${new Date(item.submitted_at).toLocaleString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function deleteFeedback(id) {
+            if (!confirm('Delete this feedback? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/feedback.php?token=${adminToken}&id=${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Feedback deleted');
+                    loadFeedback();
+                } else {
+                    alert('Failed to delete: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error deleting feedback:', error);
+                alert('Failed to delete feedback');
+            }
+        }
+        
+        function exportCSV() {
+            if (allFeedback.length === 0) {
+                alert('No feedback to export');
+                return;
+            }
+            
+            // CSV header
+            let csv = 'Date,Tour Code,Tour Name,City,Driver,Rating,Feedback\n';
+            
+            // CSV rows
+            allFeedback.forEach(item => {
+                const date = new Date(item.submitted_at).toLocaleString();
+                const feedback = item.feedback_text.replace(/"/g, '""'); // Escape quotes
+                
+                csv += `"${date}","${item.tour_code}","${item.tour_name || ''}","${item.city_name}","${item.driver_name || ''}",${item.rating},"${feedback}"\n`;
+            });
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `feedback_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'login.html';
+        }
+        
+        window.openMobileMenu = function() {
+            document.getElementById('mobileNav').classList.add('open');
+            document.getElementById('mobileOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        window.closeMobileMenu = function() {
+            document.getElementById('mobileNav').classList.remove('open');
+            document.getElementById('mobileOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        if (adminRole === 'super_admin') {
+            document.getElementById('mobileCreateAdminBtn').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

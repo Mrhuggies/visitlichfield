@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Data - Admin</title>
+    <!-- JSZip library for ZIP file creation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #F3F4F6;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 { font-size: 28px; }
+        
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .mobile-menu-btn { display: none; background: none; border: none; color: white; font-size: 28px; cursor: pointer; padding: 8px; }
+        .mobile-nav { display: none; position: fixed; top: 0; right: -100%; width: 280px; height: 100vh; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); box-shadow: -2px 0 10px rgba(0,0,0,0.3); z-index: 10001; transition: right 0.3s ease; overflow-y: auto; }
+        .mobile-nav.open { right: 0; }
+        .mobile-nav-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .mobile-nav-header h2 { color: white; font-size: 18px; }
+        .mobile-close-btn { background: none; border: none; color: white; font-size: 32px; cursor: pointer; padding: 0; line-height: 1; }
+        .mobile-nav-links { padding: 10px 0; }
+        .mobile-nav-links a { display: block; color: white; text-decoration: none; padding: 16px 20px; font-weight: 600; font-size: 16px; transition: background 0.2s; }
+        .mobile-nav-links a:hover, .mobile-nav-links a.active { background: rgba(255,255,255,0.2); }
+        .mobile-nav-links .logout-btn { width: calc(100% - 40px); margin: 10px 20px; text-align: center; }
+        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; }
+        .mobile-overlay.open { display: block; }
+        
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; }
+            .header h1 { font-size: 18px; flex: 1; }
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .mobile-nav { display: block; }
+            .container { padding: 20px 16px; }
+            .export-grid { grid-template-columns: 1fr; }
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+        
+        .export-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .export-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .export-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .export-card .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .export-card h3 {
+            font-size: 20px;
+            color: #1F2937;
+            margin-bottom: 8px;
+        }
+        
+        .export-card p {
+            color: #6B7280;
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+        
+        .export-card .stats {
+            color: #3b82f6;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-success {
+            background: #10B981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .master-export {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            padding: 32px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .master-export h2 {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+        
+        .master-export p {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 24px;
+        }
+        
+        .master-export .btn {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            color: #059669;
+            font-size: 16px;
+            padding: 16px 32px;
+        }
+        
+        .master-export .btn:hover {
+            background: #F0FDF4;
+        }
+        
+        .date-range {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+        }
+        
+        .date-group {
+            flex: 1;
+        }
+        
+        .date-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .date-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #E5E7EB;
+            border-radius: 6px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6B7280;
+        }
+        
+        .spinner {
+            border: 3px solid #E5E7EB;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .success-message {
+            background: #D1FAE5;
+            color: #065F46;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-top: 16px;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .export-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .date-range {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+    <div class="mobile-nav" id="mobileNav">
+        <div class="mobile-nav-header">
+            <h2>Menu</h2>
+            <button class="mobile-close-btn" onclick="closeMobileMenu()">×</button>
+        </div>
+        <div class="mobile-nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html">👥 Drivers</a>
+            <a href="feedback.html">⭐ Feedback</a>
+            <a href="export.html" class="active">📥 Export</a>
+            <a href="analytics.html">📈 Analytics</a>
+            <a href="create-admin.html" id="mobileCreateAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="header">
+        <h1>📊 Export Data</h1>
+        <div class="nav-links">
+            <a href="dashboard.html">📊 Dashboard</a>
+            <a href="tours.html">🎫 Tours</a>
+            <a href="drivers.html">👥 Drivers</a>
+            <a href="feedback.html">⭐ Feedback</a>
+            <a href="export.html" class="active">📥 Export</a>
+            <a href="analytics.html">📈 Analytics</a>
+            <a href="create-admin.html" id="createAdminBtn" style="display:none;">➕ Create Admin</a>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+        <button class="mobile-menu-btn" onclick="openMobileMenu()">☰</button>
+    </div>
+    
+    <div class="container">
+        <div class="date-range">
+            <div class="date-group">
+                <label>From Date:</label>
+                <input type="date" id="dateFrom">
+            </div>
+            <div class="date-group">
+                <label>To Date:</label>
+                <input type="date" id="dateTo">
+            </div>
+            <button class="btn btn-primary" onclick="updateDateRange()">Update Range</button>
+        </div>
+        
+        <div class="export-grid">
+            <div class="export-card">
+                <div class="icon">🎫</div>
+                <h3>Export Tours</h3>
+                <p>Download all tour data including tour codes, dates, cities, drivers, and participant counts.</p>
+                <div class="stats" id="toursCount">Loading...</div>
+                <button class="btn btn-primary" onclick="exportTours()" id="exportToursBtn">
+                    📥 Export Tours CSV
+                </button>
+                <div class="success-message" id="toursSuccess">✅ Downloaded!</div>
+            </div>
+            
+            <div class="export-card">
+                <div class="icon">👥</div>
+                <h3>Export Drivers</h3>
+                <p>Download driver information including contact details, statistics, and performance metrics.</p>
+                <div class="stats" id="driversCount">Loading...</div>
+                <button class="btn btn-primary" onclick="exportDrivers()" id="exportDriversBtn">
+                    📥 Export Drivers CSV
+                </button>
+                <div class="success-message" id="driversSuccess">✅ Downloaded!</div>
+            </div>
+            
+            <div class="export-card">
+                <div class="icon">⭐</div>
+                <h3>Export Feedback</h3>
+                <p>Download all customer feedback and ratings with tour details and timestamps.</p>
+                <div class="stats" id="feedbackCount">Loading...</div>
+                <button class="btn btn-primary" onclick="exportFeedback()" id="exportFeedbackBtn">
+                    📥 Export Feedback CSV
+                </button>
+                <div class="success-message" id="feedbackSuccess">✅ Downloaded!</div>
+            </div>
+            
+            <div class="export-card">
+                <div class="icon">👤</div>
+                <h3>Export Participants</h3>
+                <p>Download all tourist check-ins and participation data across all tours.</p>
+                <div class="stats" id="participantsCount">Loading...</div>
+                <button class="btn btn-primary" onclick="exportParticipants()" id="exportParticipantsBtn">
+                    📥 Export Participants CSV
+                </button>
+                <div class="success-message" id="participantsSuccess">✅ Downloaded!</div>
+            </div>
+        </div>
+        
+        <div class="master-export">
+            <h2>💾 Download Complete Backup</h2>
+            <p>Export ALL data in one ZIP file - includes tours, drivers, feedback, and participants</p>
+            <button class="btn" onclick="exportAll()" id="exportAllBtn">
+                📦 Download Everything (ZIP)
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        let adminToken = localStorage.getItem('adminToken');
+        
+        if (!adminToken) {
+            window.location.href = 'login.html';
+        }
+        
+        // Show "Create Admin" button ONLY for super admins
+        const adminRole = localStorage.getItem('adminRole');
+        if (adminRole === 'super_admin') {
+            document.getElementById('createAdminBtn').style.display = 'inline-block';
+        }
+        
+        // Set default dates (last 30 days)
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+        document.getElementById('dateFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
+        
+        // Load counts on page load
+        loadCounts();
+        
+        function updateDateRange() {
+            loadCounts();
+        }
+        
+        async function loadCounts() {
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            
+            try {
+                // Get tours count
+                const toursRes = await fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}`);
+                const toursData = await toursRes.json();
+                document.getElementById('toursCount').textContent = `${toursData.total || 0} tours in range`;
+                
+                // Get drivers count
+                const driversRes = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`);
+                const driversData = await driversRes.json();
+                document.getElementById('driversCount').textContent = `${driversData.total || 0} drivers total`;
+                
+                // Get feedback count
+                const feedbackRes = await fetch(`${API_BASE}/admin/feedback.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}`);
+                const feedbackData = await feedbackRes.json();
+                document.getElementById('feedbackCount').textContent = `${feedbackData.total || 0} reviews in range`;
+                
+                // Estimate participants (from tours data)
+                const totalParticipants = toursData.tours ? toursData.tours.reduce((sum, t) => sum + parseInt(t.participant_count || 0), 0) : 0;
+                document.getElementById('participantsCount').textContent = `${totalParticipants} participants in range`;
+                
+            } catch (error) {
+                console.error('Error loading counts:', error);
+            }
+        }
+        
+        async function exportTours() {
+            const btn = document.getElementById('exportToursBtn');
+            const success = document.getElementById('toursSuccess');
+            btn.disabled = true;
+            btn.textContent = '⏳ Exporting...';
+            
+            try {
+                const dateFrom = document.getElementById('dateFrom').value;
+                const dateTo = document.getElementById('dateTo').value;
+                
+                const response = await fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Create CSV
+                let csv = 'Tour Code,Name,Date,City,Current City,Driver,Status,Participants,Checked In,Average Rating,Feedback Count,Created At\n';
+                
+                data.tours.forEach(tour => {
+                    const row = [
+                        tour.tour_code,
+                        tour.display_name || tour.city_name + ' Tour',
+                        tour.tour_date,
+                        tour.city_name,
+                        tour.current_city_name || tour.city_name,
+                        tour.driver_name || 'Unknown',
+                        tour.status,
+                        tour.participant_count || 0,
+                        tour.checked_in_count || 0,
+                        tour.avg_rating ? parseFloat(tour.avg_rating).toFixed(1) : 'N/A',
+                        tour.feedback_count || 0,
+                        new Date(tour.created_at).toLocaleString()
+                    ];
+                    csv += row.map(field => `"${field}"`).join(',') + '\n';
+                });
+                
+                downloadCSV(csv, `tours_${dateFrom}_to_${dateTo}.csv`);
+                success.style.display = 'block';
+                setTimeout(() => { success.style.display = 'none'; }, 3000);
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export tours');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📥 Export Tours CSV';
+            }
+        }
+        
+        async function exportDrivers() {
+            const btn = document.getElementById('exportDriversBtn');
+            const success = document.getElementById('driversSuccess');
+            btn.disabled = true;
+            btn.textContent = '⏳ Exporting...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Create CSV
+                let csv = 'Name,Email,Phone,Status,Total Tours,Active Tours,Total Participants,Average Rating,Joined Date,Last Login\n';
+                
+                data.drivers.forEach(driver => {
+                    const row = [
+                        driver.name,
+                        driver.email,
+                        driver.phone || 'N/A',
+                        driver.status || 'active',
+                        driver.total_tours || 0,
+                        driver.active_tours || 0,
+                        driver.total_participants || 0,
+                        driver.avg_rating ? parseFloat(driver.avg_rating).toFixed(1) : 'N/A',
+                        driver.created_at ? new Date(driver.created_at).toLocaleDateString() : 'N/A',
+                        driver.last_login ? new Date(driver.last_login).toLocaleDateString() : 'Never'
+                    ];
+                    csv += row.map(field => `"${field}"`).join(',') + '\n';
+                });
+                
+                downloadCSV(csv, `drivers_${new Date().toISOString().split('T')[0]}.csv`);
+                success.style.display = 'block';
+                setTimeout(() => { success.style.display = 'none'; }, 3000);
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export drivers');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📥 Export Drivers CSV';
+            }
+        }
+        
+        async function exportFeedback() {
+            const btn = document.getElementById('exportFeedbackBtn');
+            const success = document.getElementById('feedbackSuccess');
+            btn.disabled = true;
+            btn.textContent = '⏳ Exporting...';
+            
+            try {
+                const dateFrom = document.getElementById('dateFrom').value;
+                const dateTo = document.getElementById('dateTo').value;
+                
+                const response = await fetch(`${API_BASE}/admin/feedback.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Create CSV
+                let csv = 'Date,Tour Code,Tour Name,City,Driver,Rating,Feedback Text\n';
+                
+                data.feedback.forEach(item => {
+                    const feedbackText = item.feedback_text.replace(/"/g, '""'); // Escape quotes
+                    const row = [
+                        new Date(item.submitted_at).toLocaleString(),
+                        item.tour_code,
+                        item.tour_name || 'N/A',
+                        item.city_name,
+                        item.driver_name || 'Unknown',
+                        item.rating,
+                        feedbackText
+                    ];
+                    csv += row.map(field => `"${field}"`).join(',') + '\n';
+                });
+                
+                downloadCSV(csv, `feedback_${dateFrom}_to_${dateTo}.csv`);
+                success.style.display = 'block';
+                setTimeout(() => { success.style.display = 'none'; }, 3000);
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export feedback');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📥 Export Feedback CSV';
+            }
+        }
+        
+        async function exportParticipants() {
+            const btn = document.getElementById('exportParticipantsBtn');
+            const success = document.getElementById('participantsSuccess');
+            btn.disabled = true;
+            btn.textContent = '⏳ Exporting...';
+            
+            try {
+                const dateFrom = document.getElementById('dateFrom').value;
+                const dateTo = document.getElementById('dateTo').value;
+                
+                // Get all tours first
+                const toursResponse = await fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`);
+                const toursData = await toursResponse.json();
+                
+                if (toursData.error) {
+                    alert(toursData.error);
+                    return;
+                }
+                
+                // Create CSV
+                let csv = 'Tour Code,Tour Name,City,Driver,Participant Session,Joined At,Checked In\n';
+                
+                // Fetch participants for each tour
+                for (const tour of toursData.tours) {
+                    const detailResponse = await fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&tour_id=${tour.id}`);
+                    const detailData = await detailResponse.json();
+                    
+                    if (detailData.participants) {
+                        detailData.participants.forEach(p => {
+                            const row = [
+                                tour.tour_code,
+                                tour.display_name || tour.city_name + ' Tour',
+                                tour.city_name,
+                                tour.driver_name || 'Unknown',
+                                p.session_id.substring(0, 20) + '...',
+                                new Date(p.joined_at).toLocaleString(),
+                                p.checked_in ? 'Yes' : 'No'
+                            ];
+                            csv += row.map(field => `"${field}"`).join(',') + '\n';
+                        });
+                    }
+                }
+                
+                downloadCSV(csv, `participants_${dateFrom}_to_${dateTo}.csv`);
+                success.style.display = 'block';
+                setTimeout(() => { success.style.display = 'none'; }, 3000);
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export participants');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📥 Export Participants CSV';
+            }
+        }
+        
+        async function exportAll() {
+            const btn = document.getElementById('exportAllBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Creating ZIP backup...';
+            
+            try {
+                const dateFrom = document.getElementById('dateFrom').value;
+                const dateTo = document.getElementById('dateTo').value;
+                
+                // Create a new ZIP file
+                const zip = new JSZip();
+                
+                // Update button to show progress
+                btn.textContent = '⏳ Fetching tours...';
+                
+                // 1. Generate Tours CSV
+                const toursCSV = await generateToursCSV(dateFrom, dateTo);
+                zip.file(`tours_${dateFrom}_to_${dateTo}.csv`, toursCSV);
+                
+                btn.textContent = '⏳ Fetching drivers...';
+                
+                // 2. Generate Drivers CSV
+                const driversCSV = await generateDriversCSV();
+                zip.file(`drivers_${new Date().toISOString().split('T')[0]}.csv`, driversCSV);
+                
+                btn.textContent = '⏳ Fetching feedback...';
+                
+                // 3. Generate Feedback CSV
+                const feedbackCSV = await generateFeedbackCSV(dateFrom, dateTo);
+                zip.file(`feedback_${dateFrom}_to_${dateTo}.csv`, feedbackCSV);
+                
+                btn.textContent = '⏳ Fetching participants...';
+                
+                // 4. Generate Participants CSV
+                const participantsCSV = await generateParticipantsCSV(dateFrom, dateTo);
+                zip.file(`participants_${dateFrom}_to_${dateTo}.csv`, participantsCSV);
+                
+                btn.textContent = '⏳ Creating ZIP file...';
+                
+                // Generate the ZIP file and download it
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const url = window.URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `lichfield_tours_backup_${dateFrom}_to_${dateTo}.zip`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                alert('✅ Complete backup downloaded as ZIP file!');
+                
+            } catch (error) {
+                console.error('Export all error:', error);
+                alert('Failed to create backup: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📦 Download Everything (ZIP)';
+            }
+        }
+        
+        // Helper functions to generate CSV data without downloading
+        async function generateToursCSV(dateFrom, dateTo) {
+            const response = await fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`);
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+            
+            let csv = 'Tour Code,Name,Date,City,Current City,Driver,Status,Participants,Checked In,Average Rating,Feedback Count,Created At\n';
+            
+            (data.tours || []).forEach(tour => {
+                const row = [
+                    tour.tour_code,
+                    tour.display_name || tour.city_name + ' Tour',
+                    tour.tour_date,
+                    tour.city_name,
+                    tour.current_city_name || tour.city_name,
+                    tour.driver_name || 'Unknown',
+                    tour.status,
+                    tour.participant_count || 0,
+                    tour.checked_in_count || 0,
+                    tour.avg_rating ? parseFloat(tour.avg_rating).toFixed(1) : 'N/A',
+                    tour.feedback_count || 0,
+                    tour.created_at ? new Date(tour.created_at).toLocaleString() : 'N/A'
+                ];
+                csv += row.map(field => `"${field}"`).join(',') + '\n';
+            });
+            
+            return csv;
+        }
+        
+        async function generateDriversCSV() {
+            const response = await fetch(`${API_BASE}/admin/drivers.php?token=${adminToken}`);
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+            
+            let csv = 'Name,Email,Phone,Status,Total Tours,Active Tours,Total Participants,Average Rating,Joined Date,Last Login\n';
+            
+            (data.drivers || []).forEach(driver => {
+                const row = [
+                    driver.name,
+                    driver.email,
+                    driver.phone || 'N/A',
+                    driver.status || 'active',
+                    driver.total_tours || 0,
+                    driver.active_tours || 0,
+                    driver.total_participants || 0,
+                    driver.avg_rating ? parseFloat(driver.avg_rating).toFixed(1) : 'N/A',
+                    driver.created_at ? new Date(driver.created_at).toLocaleDateString() : 'N/A',
+                    driver.last_login ? new Date(driver.last_login).toLocaleDateString() : 'Never'
+                ];
+                csv += row.map(field => `"${field}"`).join(',') + '\n';
+            });
+            
+            return csv;
+        }
+        
+        async function generateFeedbackCSV(dateFrom, dateTo) {
+            const response = await fetch(`${API_BASE}/admin/feedback.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`);
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+            
+            let csv = 'Date,Tour Code,Tour Name,City,Driver,Rating,Feedback Text\n';
+            
+            (data.feedback || []).forEach(item => {
+                const feedbackText = (item.feedback_text || '').replace(/"/g, '""');
+                const row = [
+                    new Date(item.submitted_at).toLocaleString(),
+                    item.tour_code,
+                    item.tour_name || 'N/A',
+                    item.city_name,
+                    item.driver_name || 'Unknown',
+                    item.rating,
+                    feedbackText
+                ];
+                csv += row.map(field => `"${field}"`).join(',') + '\n';
+            });
+            
+            return csv;
+        }
+        
+        async function generateParticipantsCSV(dateFrom, dateTo) {
+            const toursResponse = await fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&date_from=${dateFrom}&date_to=${dateTo}&limit=10000`);
+            const toursData = await toursResponse.json();
+            
+            if (toursData.error) throw new Error(toursData.error);
+            
+            let csv = 'Tour Code,Tour Name,City,Driver,Participant Session,Joined At,Checked In\n';
+            
+            for (const tour of (toursData.tours || [])) {
+                const detailResponse = await fetch(`${API_BASE}/admin/tours.php?token=${adminToken}&tour_id=${tour.id}`);
+                const detailData = await detailResponse.json();
+                
+                if (detailData.participants) {
+                    detailData.participants.forEach(p => {
+                        const row = [
+                            tour.tour_code,
+                            tour.display_name || tour.city_name + ' Tour',
+                            tour.city_name,
+                            tour.driver_name || 'Unknown',
+                            p.session_id.substring(0, 20) + '...',
+                            new Date(p.joined_at).toLocaleString(),
+                            p.checked_in ? 'Yes' : 'No'
+                        ];
+                        csv += row.map(field => `"${field}"`).join(',') + '\n';
+                    });
+                }
+            }
+            
+            return csv;
+        }
+        
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'login.html';
+        }
+        
+        window.openMobileMenu = function() {
+            document.getElementById('mobileNav').classList.add('open');
+            document.getElementById('mobileOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        window.closeMobileMenu = function() {
+            document.getElementById('mobileNav').classList.remove('open');
+            document.getElementById('mobileOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        
+        if (adminRole === 'super_admin') {
+            document.getElementById('mobileCreateAdminBtn').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

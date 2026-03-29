@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Dashboard - Tour Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #1F2937;
+        }
+        
+        .subtitle {
+            color: #6B7280;
+            margin-bottom: 24px;
+        }
+        
+        .timer-display {
+            background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .timer-label {
+            font-size: 14px;
+            color: #6B7280;
+            margin-bottom: 8px;
+        }
+        
+        .timer-time {
+            font-size: 64px;
+            font-weight: 700;
+            color: #1F2937;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .timer-status {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+        
+        .timer-status.active { color: #059669; }
+        .timer-status.warning { color: #F59E0B; }
+        .timer-status.urgent { color: #DC2626; }
+        
+        .btn {
+            width: 100%;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #F59E0B;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #DC2626;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6B7280;
+            color: white;
+        }
+        
+        .checkin-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat {
+            background: #F9FAFB;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #1F2937;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #6B7280;
+            margin-top: 4px;
+        }
+        
+        .tour-info {
+            background: #EFF6FF;
+            border-left: 4px solid #3B82F6;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .tour-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+        
+        .tour-info-label {
+            color: #1E40AF;
+            font-weight: 600;
+        }
+        
+        .tour-info-value {
+            color: #1F2937;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                    <h1 style="margin: 0;">🚌 Tour Control</h1>
+                    <p class="subtitle" id="tourInfo" style="margin: 4px 0 0 0;">Loading tour information...</p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <a href="driver-tour-select.html" style="background: #6B7280; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: flex; align-items: center; height: 42px;">
+                        ← Back to Tours
+                    </a>
+                    <a href="driver-profile.html" style="background: #667eea; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: flex; align-items: center; height: 42px;">
+                        My Profile
+                    </a>
+                </div>
+            </div>
+            
+            <div class="tour-info" id="tourDetails" style="display:none;">
+                <div class="tour-info-item">
+                    <span class="tour-info-label">Tour:</span>
+                    <span class="tour-info-value" id="tourName">-</span>
+                </div>
+                <div class="tour-info-item">
+                    <span class="tour-info-label">Code:</span>
+                    <span class="tour-info-value" id="tourCode">-</span>
+                </div>
+                <div class="tour-info-item">
+                    <span class="tour-info-label">Current City:</span>
+                    <span class="tour-info-value" id="currentCity" style="font-weight: 700; color: #3B82F6;">-</span>
+                </div>
+                <div class="tour-info-item">
+                    <span class="tour-info-label">Date:</span>
+                    <span class="tour-info-value" id="tourDate">-</span>
+                </div>
+            </div>
+            
+            <div class="timer-display">
+                <div class="timer-label">Bus Departs <span id="departureCityName">Current City</span></div>
+                <div class="timer-time" id="departureTime">--:--</div>
+                <div class="timer-status" id="timerStatus">Set your departure time below</div>
+            </div>
+            
+            <div id="notStarted">
+                <!-- Show activate button if tour is NOT active -->
+                <div id="activationWarning" style="display:none; background: #FEF3C7; border: 3px solid #F59E0B; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                    <p style="margin: 0 0 12px 0; font-weight: 700; color: #92400E; font-size: 18px;">
+                        ⚠️ TOUR NOT ACTIVE
+                    </p>
+                    <p style="margin: 0 0 8px 0; color: #78350F; font-size: 15px;">
+                        <strong>Why this matters:</strong>
+                    </p>
+                    <ul style="margin: 0 0 16px 20px; color: #78350F; font-size: 14px;">
+                        <li>Tourists <strong>cannot join</strong> this tour</li>
+                        <li>You <strong>cannot switch cities</strong></li>
+                        <li>Tour will not appear in active tours list</li>
+                    </ul>
+                    <p style="margin: 0 0 16px 0; color: #92400E; font-size: 15px; font-weight: 600;">
+                        👉 Click below to activate NOW:
+                    </p>
+                    <button class="btn btn-primary" onclick="forceActivateTour()" style="margin-right: 8px; font-size: 16px; padding: 14px 28px; background: #F59E0B; box-shadow: 0 4px 8px rgba(245, 158, 11, 0.4);">
+                        ⚡ ACTIVATE TOUR NOW
+                    </button>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                        Set Departure Time:
+                    </label>
+                    <input type="time" id="departureTimeInput" 
+                           style="width: 100%; padding: 12px; border: 2px solid #E5E7EB; border-radius: 8px; font-size: 16px;">
+                </div>
+                <button class="btn btn-primary" onclick="setDepartureTime()">
+                    Start Tour
+                </button>
+            </div>
+            
+            <div id="timerRunning" style="display:none;">
+                <button class="btn btn-warning" onclick="addTime(15)">
+                    ⏰ Add 15 Minutes (Running Late)
+                </button>
+                <button class="btn btn-danger" onclick="departNow()">
+                    🚌 Depart Now
+                </button>
+                <button class="btn btn-secondary" onclick="resetTimer()">
+                    Reset Timer
+                </button>
+            </div>
+            
+            <!-- Departed State - Show after bus departs -->
+            <div id="departedState" style="display:none;">
+                <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; color: white;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🚌</div>
+                    <h3 style="margin: 0 0 8px 0; font-size: 20px;">Bus Has Departed!</h3>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.9;">Tourists have been notified</p>
+                </div>
+                
+                <button class="btn" onclick="showSwitchCityModal()" 
+                        style="background: #8B5CF6; color: white; font-size: 18px; padding: 16px; margin-bottom: 12px;">
+                    🌍 Switch to Next City
+                </button>
+                
+                <button class="btn btn-secondary" onclick="resetTimer()">
+                    Reset Timer (Stay in <span id="currentCityForReset"></span>)
+                </button>
+            </div>
+            
+            <button class="btn" onclick="endTour()" 
+                    style="background: #EF4444; color: white; margin-top: 20px;">
+                🏁 End Tour
+            </button>
+        </div>
+        
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">Tourist Check-ins</h2>
+            <div class="checkin-stats">
+                <div class="stat">
+                    <div class="stat-value" id="checkedInCount">0</div>
+                    <div class="stat-label">Checked In</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="totalTourists">0</div>
+                    <div class="stat-label">Total Tourists</div>
+                </div>
+            </div>
+            <p style="text-align: center; color: #6B7280; font-size: 14px;">
+                Tourists can check in during the last 15 minutes
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'https://apps.tag-art.co.uk/visitlichfield/api';
+        let timerInterval = null;
+        let departureDateTime = null;
+        let tourCode = localStorage.getItem('driverTourCode') || 'LICH-TODAY';
+        let tourId = null;
+        let currentCitySlug = '';
+        let hasDeparted = false; // ADD: Prevent timer restoration after departure
+        let addTimeInProgress = false; // ADD: Prevent spam clicking
+        let currentCityName = '';
+        let manuallyChanged = false; // Flag to prevent sync from overwriting manual changes
+        
+        // Load tour info from API
+        loadTourInfo();
+        
+        async function loadTourInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/tours.php?code=${tourCode}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('tourInfo').textContent = `Error: ${data.error}`;
+                    return;
+                }
+                
+                tourId = data.id;
+                document.getElementById('tourName').textContent = data.display_name || data.city_name + ' Tour';
+                document.getElementById('tourCode').textContent = tourCode;
+                document.getElementById('tourDate').textContent = new Date(data.tour_date).toLocaleDateString();
+                
+                // Set current city info
+                currentCitySlug = data.current_city_slug || data.city_slug;
+                currentCityName = data.current_city_name || data.city_name;
+                document.getElementById('currentCity').textContent = currentCityName;
+                document.getElementById('departureCityName').textContent = currentCityName;
+                document.getElementById('currentCityForReset').textContent = currentCityName;
+                
+                document.getElementById('tourDetails').style.display = 'block';
+                
+                // Check if tour is NOT active - show activation button
+                if (data.status !== 'active') {
+                    console.log('⚠️ Tour status is:', data.status, '- showing activation warning');
+                    document.getElementById('activationWarning').style.display = 'block';
+                } else {
+                    console.log('✅ Tour status is active');
+                    document.getElementById('activationWarning').style.display = 'none';
+                }
+                
+                // If tour has departure time, load it
+                if (data.departure_time) {
+                    const [hours, minutes] = data.departure_time.split(':');
+                    const today = new Date();
+                    departureDateTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+                    updateDisplay();
+                    showRunningControls();
+                }
+                
+                document.getElementById('tourInfo').textContent = '';
+            } catch (error) {
+                console.error('Failed to load tour:', error);
+                document.getElementById('tourInfo').textContent = 'Failed to connect to server';
+            }
+            
+            updateCheckinStats();
+            
+            // Poll API every 10 seconds to check for updates from other devices
+            setInterval(syncFromAPI, 10000);
+        }
+        
+        async function syncFromAPI() {
+            // Don't sync if user just made manual changes OR if bus has departed
+            if (manuallyChanged || hasDeparted) {
+                console.log('⏭️ Skipping sync - manuallyChanged:', manuallyChanged, 'hasDeparted:', hasDeparted);
+                return;
+            }
+            
+            console.log('🔄 syncFromAPI running...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/tours.php?code=${tourCode}`);
+                const data = await response.json();
+                
+                console.log('📡 API returned departure_time:', data.departure_time);
+                
+                // Treat "00:00:00" as null (this is a database quirk)
+                const departureTime = (data.departure_time === "00:00:00" || data.departure_time === "00:00" || !data.departure_time) ? null : data.departure_time;
+                
+                // Only restore timer if departure_time exists AND we haven't departed
+                if (!data.error && departureTime && !hasDeparted) {
+                    console.log('⚠️ API has valid departure_time, attempting restore...');
+                    const [hours, minutes] = departureTime.split(':');
+                    const today = new Date();
+                    const apiTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+                    
+                    // Only update if time changed significantly (to avoid overwriting local changes)
+                    if (!departureDateTime || Math.abs(apiTime - departureDateTime) > 60000) {
+                        console.log('✅ RESTORING TIMER from API');
+                        departureDateTime = apiTime;
+                        updateDisplay();
+                        if (!document.getElementById('timerRunning').style.display || document.getElementById('timerRunning').style.display === 'none') {
+                            showRunningControls();
+                        }
+                    } else {
+                        console.log('⏭️ Time unchanged, skipping restore');
+                    }
+                } else {
+                    console.log('⏭️ No valid departure_time in API (is 00:00:00 or null) or departed flag set');
+                }
+            } catch (error) {
+                console.error('Failed to sync from API:', error);
+            }
+        }
+        
+        async function setDepartureTime() {
+            const timeInput = document.getElementById('departureTimeInput');
+            if (!timeInput.value) {
+                alert('Please select a departure time');
+                return;
+            }
+            
+            const [hours, minutes] = timeInput.value.split(':');
+            const now = new Date();
+            departureDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+            
+            // If time is in the past, set it for tomorrow
+            if (departureDateTime < now) {
+                departureDateTime.setDate(departureDateTime.getDate() + 1);
+            }
+            
+            // Save to API - WAIT for completion
+            const saved = await saveDepartureTime();
+            
+            if (saved) {
+                updateDisplay();
+                showRunningControls();
+                
+                // Start polling
+                syncInterval = setInterval(syncFromAPI, 10000);
+                updateCheckinStats();
+                checkinInterval = setInterval(updateCheckinStats, 5000);
+            } else {
+                alert('Failed to save departure time. Please try again.');
+            }
+        }
+        
+        async function startTimer(minutes) {
+            const now = new Date();
+            departureDateTime = new Date(now.getTime() + minutes * 60000);
+            
+            // Save to API
+            await saveDepartureTime();
+            updateDisplay();
+            showRunningControls();
+            
+            // Start updating
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateDisplay, 1000);
+        }
+        
+        async function addTime(minutes) {
+            if (!departureDateTime) return;
+            
+            // Prevent spam clicking
+            if (addTimeInProgress) {
+                console.log('Already adding time, please wait...');
+                return;
+            }
+            
+            addTimeInProgress = true;
+            
+            departureDateTime = new Date(departureDateTime.getTime() + minutes * 60000);
+            await saveDepartureTime();
+            updateDisplay();
+            
+            // Re-enable after 1 second
+            setTimeout(() => {
+                addTimeInProgress = false;
+            }, 1000);
+        }
+        
+        async function departNow() {
+            if (!confirm('Notify tourists that the bus has departed from ' + currentCityName + '?')) {
+                return;
+            }
+            
+            try {
+                manuallyChanged = true; // Prevent sync from overwriting
+                hasDeparted = true; // ADD: Mark as departed
+                
+                // Clear departure time in database AND record departure
+                await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        departure_time: null, // Clear the timer
+                        actual_departure: new Date().toTimeString().split(' ')[0]
+                        // DON'T change status - keep it 'active'
+                    })
+                });
+                
+                // Clear timer locally
+                departureDateTime = null;
+                if (timerInterval) clearInterval(timerInterval);
+                
+                // Hide running controls
+                document.getElementById('timerRunning').style.display = 'none';
+                document.getElementById('notStarted').style.display = 'none';
+                
+                // Show departed state
+                document.getElementById('departedState').style.display = 'block';
+                document.getElementById('departureTime').textContent = '--:--';
+                document.getElementById('timerStatus').textContent = 'Bus has departed from ' + currentCityName;
+                
+                alert('✅ Departure notification sent to all tourists!\n\nYou can now switch to the next city.');
+                
+                // Keep manuallyChanged and hasDeparted as true - don't reset
+                // (Will reset on city switch)
+                
+            } catch (error) {
+                console.error('Failed to mark as departed:', error);
+                alert('❌ Failed to send notification. Please try again.');
+                manuallyChanged = false;
+                hasDeparted = false; // Reset on error
+            }
+        }
+        
+        async function resetTimer() {
+            console.log('🔄 RESET TIMER CALLED');
+            manuallyChanged = true; // Prevent sync from overwriting
+            hasDeparted = false; // NOT departed, just resetting
+            departureDateTime = null;
+            if (timerInterval) clearInterval(timerInterval);
+            
+            console.log('🔄 Flags set: manuallyChanged=true, hasDeparted=false, departureDateTime=null');
+            
+            // Clear departure time in database
+            try {
+                await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        departure_time: null
+                    })
+                });
+                
+                console.log('🔄 Database cleared, showing notStarted UI');
+                
+                // Reset UI to initial state
+                document.getElementById('notStarted').style.display = 'block';
+                document.getElementById('timerRunning').style.display = 'none';
+                document.getElementById('departedState').style.display = 'none';
+                document.getElementById('departureTime').textContent = '--:--';
+                document.getElementById('timerStatus').textContent = 'No timer set';
+                
+                // Allow sync again after 2 seconds
+                setTimeout(() => { 
+                    manuallyChanged = false;
+                    console.log('🔄 manuallyChanged reset to false after 2 seconds');
+                }, 2000);
+            } catch (error) {
+                console.error('Failed to clear departure time:', error);
+                manuallyChanged = false;
+            }
+        }
+        
+        async function saveDepartureTime() {
+            if (!departureDateTime) return false;
+            
+            const timeString = departureDateTime.toTimeString().split(' ')[0];
+            
+            console.log('Saving departure time:', timeString);
+            
+            try {
+                const response = await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        departure_time: timeString
+                        // No need to set status - tours are active by default
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Save response:', data);
+                
+                if (data.success) {
+                    console.log('✅ Departure time saved successfully');
+                    return true;
+                } else {
+                    console.error('❌ Failed to save:', data);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Failed to save departure time:', error);
+                return false;
+            }
+        }
+        
+        async function endTour() {
+            if (!confirm('End this tour? This will mark it as completed and remove it from the active tours list.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/end-tour.php`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Driver-Token': localStorage.getItem('driverToken')
+                    },
+                    body: JSON.stringify({
+                        tour_code: tourCode
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Tour ended successfully!');
+                    window.location.href = 'driver-tour-select.html';
+                } else {
+                    alert('Failed to end tour: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to end tour:', error);
+                alert('Failed to end tour');
+            }
+        }
+        
+        function showRunningControls() {
+            document.getElementById('notStarted').style.display = 'none';
+            document.getElementById('departedState').style.display = 'none';
+            document.getElementById('timerRunning').style.display = 'block';
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateDisplay, 1000);
+        }
+        
+        function updateDisplay() {
+            if (!departureDateTime) return;
+            
+            const now = new Date();
+            const diff = departureDateTime - now;
+            const minutes = Math.floor(diff / 60000);
+            
+            // Format departure time
+            const hours = departureDateTime.getHours();
+            const mins = departureDateTime.getMinutes();
+            document.getElementById('departureTime').textContent = 
+                `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}`;
+            
+            // Status
+            const statusEl = document.getElementById('timerStatus');
+            if (diff < 0) {
+                statusEl.textContent = 'Departed';
+                statusEl.className = 'timer-status urgent';
+            } else {
+                // Convert to hours and minutes
+                const totalMinutes = Math.floor(diff / 60000);
+                const hours = Math.floor(totalMinutes / 60);
+                const mins = totalMinutes % 60;
+                
+                let timeText;
+                if (hours > 0) {
+                    timeText = `${hours}h ${mins}m remaining`;
+                } else {
+                    timeText = `${mins}m remaining`;
+                }
+                
+                statusEl.textContent = timeText;
+                
+                // Color coding
+                if (totalMinutes < 15) {
+                    statusEl.className = 'timer-status urgent';
+                } else if (totalMinutes < 30) {
+                    statusEl.className = 'timer-status warning';
+                } else {
+                    statusEl.className = 'timer-status active';
+                }
+            }
+        }
+        
+        async function updateCheckinStats() {
+            try {
+                const response = await fetch(`${API_BASE}/tours.php?code=${tourCode}`);
+                const data = await response.json();
+                
+                if (!data.error) {
+                    document.getElementById('checkedInCount').textContent = data.checked_in_count || 0;
+                    document.getElementById('totalTourists').textContent = data.total_participants || 0;
+                }
+            } catch (error) {
+                console.error('Failed to fetch check-in stats:', error);
+            }
+            
+            setTimeout(updateCheckinStats, 5000); // Update every 5 seconds
+        }
+        
+        // Force activate tour - direct activation bypass
+        async function forceActivateTour() {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Activating...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        status: 'active'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Tour activated! You can now switch cities.');
+                    document.getElementById('activationWarning').style.display = 'none';
+                    // Reload page to refresh everything
+                    location.reload();
+                } else {
+                    alert('❌ Failed to activate: ' + (data.error || 'Unknown error'));
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+        
+        // Switch City Modal Functions
+        let availableCities = [];
+        
+        async function showSwitchCityModal() {
+            // Fetch available cities
+            try {
+                const response = await fetch(`${API_BASE}/cities.php`);
+                
+                // Log the response for debugging
+                console.log('Cities API response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const text = await response.text();
+                console.log('Cities API raw response:', text);
+                
+                // Try to parse as JSON
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                    console.error('Response text:', text);
+                    alert('Server returned invalid JSON. Check console for details.');
+                    return;
+                }
+                
+                if (data.success) {
+                    availableCities = data.cities;
+                    renderCityOptions();
+                    document.getElementById('switchCityModal').style.display = 'flex';
+                } else {
+                    alert('Failed to load cities: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to load cities:', error);
+                alert('Failed to load cities. See console for details: ' + error.message);
+            }
+        }
+        
+        function renderCityOptions() {
+            const container = document.getElementById('cityOptionsContainer');
+            container.innerHTML = '';
+            
+            availableCities.forEach(city => {
+                const isCurrent = city.slug === currentCitySlug;
+                
+                const button = document.createElement('button');
+                button.className = 'city-option-btn';
+                button.disabled = isCurrent;
+                button.onclick = () => selectCityToSwitch(city);
+                
+                button.innerHTML = `
+                    <div style="font-size: 32px; margin-bottom: 8px;">${city.icon || '🏙️'}</div>
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">${city.name}</div>
+                    ${isCurrent ? '<div style="font-size: 12px; color: #10B981;">✓ Current City</div>' : ''}
+                `;
+                
+                if (isCurrent) {
+                    button.style.opacity = '0.5';
+                    button.style.cursor = 'not-allowed';
+                }
+                
+                container.appendChild(button);
+            });
+        }
+        
+        function selectCityToSwitch(city) {
+            document.getElementById('selectedCityName').textContent = city.name;
+            document.getElementById('selectedCityName2').textContent = city.name;
+            document.getElementById('selectedCitySlug').value = city.slug;
+            document.getElementById('switchCityModal').style.display = 'none';
+            document.getElementById('confirmSwitchModal').style.display = 'flex';
+        }
+        
+        function cancelCitySwitch() {
+            document.getElementById('switchCityModal').style.display = 'none';
+            document.getElementById('confirmSwitchModal').style.display = 'none';
+            document.getElementById('newDepartureTimeInput').value = '';
+        }
+        
+        async function confirmCitySwitch() {
+            const newCitySlug = document.getElementById('selectedCitySlug').value;
+            const newDepartureTime = document.getElementById('newDepartureTimeInput').value;
+            
+            if (!newDepartureTime) {
+                alert('Please set a departure time for the new city');
+                return;
+            }
+            
+            const confirmBtn = event.target;
+            const originalText = confirmBtn.textContent;
+            confirmBtn.textContent = 'Switching...';
+            confirmBtn.disabled = true;
+            
+            // Log what we're sending
+            console.log('Switching city:', {
+                tour_code: tourCode,
+                city_slug: newCitySlug,
+                departure_time: newDepartureTime
+            });
+            
+            try {
+                const response = await fetch(`${API_BASE}/switch-city.php`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Driver-Token': localStorage.getItem('driverToken')
+                    },
+                    body: JSON.stringify({
+                        tour_code: tourCode,
+                        city_slug: newCitySlug,
+                        departure_time: newDepartureTime
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                // Get response text first
+                const text = await response.text();
+                console.log('Response text:', text);
+                
+                // Try to parse as JSON
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse JSON:', e);
+                    throw new Error('Server returned invalid response: ' + text.substring(0, 100));
+                }
+                
+                if (data.success) {
+                    alert(`✅ Tour switched to ${data.new_city.name}!\n\nTourists have been notified and will see the new city.\n\nSet your new departure time below.`);
+                    document.getElementById('confirmSwitchModal').style.display = 'none';
+                    document.getElementById('switchCityModal').style.display = 'none';
+                    
+                    // Reset departed flag for new city
+                    hasDeparted = false;
+                    manuallyChanged = false;
+                    
+                    // Reload tour info
+                    await loadTourInfo();
+                    
+                    // Update departure time
+                    departureDateTime = new Date();
+                    const [hours, minutes] = newDepartureTime.split(':');
+                    departureDateTime.setHours(parseInt(hours), parseInt(minutes), 0);
+                    
+                    // Reset UI to "notStarted" state (ready for new departure)
+                    document.getElementById('departedState').style.display = 'none';
+                    document.getElementById('timerRunning').style.display = 'none';
+                    document.getElementById('notStarted').style.display = 'block';
+                    
+                    // Set the time input to the new time
+                    document.getElementById('departureTimeInput').value = newDepartureTime;
+                    
+                    updateDisplay();
+                    showRunningControls(); // Show timer controls
+                } else {
+                    alert('Failed to switch city: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to switch city:', error);
+                alert('Failed to switch city: ' + error.message);
+            } finally {
+                confirmBtn.textContent = originalText;
+                confirmBtn.disabled = false;
+            }
+        }
+    </script>
+    
+    <!-- Switch City Modal -->
+    <div id="switchCityModal" style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 32px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <h2 style="margin: 0 0 8px 0; font-size: 24px; color: #1F2937;">Switch Tour City</h2>
+            <p style="color: #6B7280; margin-bottom: 24px;">Select the city to move the tour to</p>
+            
+            <div id="cityOptionsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px;"></div>
+            
+            <button onclick="cancelCitySwitch()" style="width: 100%; padding: 12px; background: #E5E7EB; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                Cancel
+            </button>
+        </div>
+    </div>
+    
+    <!-- Confirm Switch Modal -->
+    <div id="confirmSwitchModal" style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 32px; border-radius: 12px; max-width: 450px; width: 90%;">
+            <div style="font-size: 48px; text-align: center; margin-bottom: 16px;">🌍</div>
+            <h2 style="margin: 0 0 8px 0; font-size: 24px; color: #1F2937; text-align: center;">Moving to <span id="selectedCityName"></span></h2>
+            <p style="color: #6B7280; margin-bottom: 24px; text-align: center;">All tourists will be notified automatically</p>
+            
+            <input type="hidden" id="selectedCitySlug">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151;">
+                    Bus Departs <span id="selectedCityName2"></span> at:
+                </label>
+                <input type="time" id="newDepartureTimeInput" 
+                       style="width: 100%; padding: 12px; border: 2px solid #E5E7EB; border-radius: 8px; font-size: 16px;"
+                       required>
+            </div>
+            
+            <button onclick="confirmCitySwitch()" style="width: 100%; padding: 14px; background: #8B5CF6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 12px; font-size: 16px;">
+                Confirm & Switch City
+            </button>
+            
+            <button onclick="cancelCitySwitch()" style="width: 100%; padding: 12px; background: #E5E7EB; color: #374151; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                Cancel
+            </button>
+        </div>
+    </div>
+    
+    <style>
+        .city-option-btn {
+            padding: 20px;
+            background: white;
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .city-option-btn:hover:not(:disabled) {
+            border-color: #8B5CF6;
+            background: #F5F3FF;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        }
+        
+        .city-option-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+    </style>
+</body>
+</html>

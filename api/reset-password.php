@@ -14,10 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
-    $token = $input['token'] ?? '';
+    $token = isset($input['token']) && is_string($input['token']) ? substr($input['token'], 0, 128) : '';
     $password = $input['password'] ?? '';
+    // Throttle token guessing
+    checkRateLimit('reset_confirm_' . getClientIp(), 20, 3600);
     
     if (empty($token) || empty($password)) {
         jsonError('Token and password required');

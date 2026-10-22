@@ -483,7 +483,7 @@
                 // Clear departure time in database AND record departure
                 await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Driver-Token': localStorage.getItem('driverToken') || ''},
                     body: JSON.stringify({
                         departure_time: null, // Clear the timer
                         actual_departure: new Date().toTimeString().split(' ')[0]
@@ -530,7 +530,7 @@
             try {
                 await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Driver-Token': localStorage.getItem('driverToken') || ''},
                     body: JSON.stringify({
                         departure_time: null
                     })
@@ -566,7 +566,7 @@
             try {
                 const response = await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Driver-Token': localStorage.getItem('driverToken') || ''},
                     body: JSON.stringify({
                         departure_time: timeString
                         // No need to set status - tours are active by default
@@ -698,7 +698,7 @@
             try {
                 const response = await fetch(`${API_BASE}/tours.php?code=${tourCode}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'X-Driver-Token': localStorage.getItem('driverToken') || ''},
                     body: JSON.stringify({
                         status: 'active'
                     })

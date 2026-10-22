@@ -15,9 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $conn = getDbConnection();
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
-    $token = isset($input['token']) ? sanitizeString($input['token'], 64) : '';
+    $token = requestToken('driver', $input);
     $name = isset($input['name']) ? sanitizeString($input['name'], 100) : '';
     $phone = isset($input['phone']) ? sanitizeString($input['phone'], 20) : '';
     $bio = isset($input['bio']) ? sanitizeString($input['bio'], 500) : '';

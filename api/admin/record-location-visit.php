@@ -3,9 +3,12 @@
  * Record Location Visit API
  * Tracks when tourists enter/exit landmark areas
  */
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 
 initApiEndpoint();
+
+// Public tourist-facing endpoint: keep it from being used to flood the table
+checkRateLimit('locvisit_' . getClientIp(), 300, 3600);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('Method not allowed', 405);
@@ -34,7 +37,7 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
     $session_id = isset($input['session_id']) ? sanitizeString($input['session_id'], 64) : '';
     $tour_code = isset($input['tour_code']) ? sanitizeString($input['tour_code'], 50) : '';
@@ -43,7 +46,14 @@ try {
     $city_slug = isset($input['city_slug']) ? sanitizeString($input['city_slug'], 50) : '';
     $entered_at = isset($input['entered_at']) ? sanitizeString($input['entered_at'], 30) : '';
     $exited_at = isset($input['exited_at']) ? sanitizeString($input['exited_at'], 30) : '';
-    $dwell_seconds = isset($input['dwell_seconds']) ? (int) $input['dwell_seconds'] : 0;
+    $dwell_seconds = isset($input['dwell_seconds']) && is_numeric($input['dwell_seconds']) ? max(0, min(86400, (int) $input['dwell_seconds'])) : 0;
+    // Timestamps: accept only things strtotime understands, store in MySQL format (or NULL)
+    $toDateTime = function ($v) {
+        $t = $v === '' ? false : strtotime($v);
+        return $t === false ? null : date('Y-m-d H:i:s', $t);
+    };
+    $entered_at = $toDateTime($entered_at);
+    $exited_at = $toDateTime($exited_at);
     
     if (empty($session_id) || empty($location_id)) {
         jsonError('Session ID and location ID required');
@@ -58,6 +68,8 @@ try {
         $result = $stmt->get_result();
         if ($row = $result->fetch_assoc()) {
             $tour_id = $row['id'];
+        } else {
+            jsonError('Tour not found', 404);
         }
     }
     

@@ -9,21 +9,14 @@ initApiEndpoint();
 try {
     $conn = getDbConnection();
     
-    $token = isset($_GET['token']) ? sanitizeString($_GET['token'], 64) : '';
+    $token = requestToken('admin');
     $tourCode = isset($_GET['code']) ? sanitizeString($_GET['code'], 50) : '';
     
     if (empty($token) || empty($tourCode)) {
         jsonError('Token and tour code required');
     }
     
-    $stmt = $conn->prepare("SELECT id, role FROM admin_users WHERE auth_token = ? AND token_expires > NOW()");
-    $stmt->bind_param("s", $token);
-    $stmt->execute();
-    $admin = $stmt->get_result()->fetch_assoc();
-    
-    if (!$admin) {
-        jsonError('Invalid or expired admin token', 401);
-    }
+    $admin = requireAdmin($conn, $token, 'analyst');
     
     $stmt = $conn->prepare("
         SELECT t.*, c.name as city_name, d.name as driver_name, d.phone as driver_phone

@@ -23,22 +23,12 @@ try {
     $has_created_at = in_array('created_at', $existing_columns);
     
     // Verify admin token
-    $token = $_GET['token'] ?? '';
-    if (!$token) {
-        jsonError('Authorization required', 401);
-    }
-    
-    $stmt = $conn->prepare("SELECT id FROM admin_users WHERE auth_token = ? AND token_expires > NOW()");
-    $stmt->bind_param("s", $token);
-    $stmt->execute();
-    $admin = $stmt->get_result()->fetch_assoc();
-    if (!$admin) {
-        jsonError('Invalid or expired token', 401);
-    }
+    $token = requestToken('admin');
+    $admin = requireAdmin($conn, $token, $_SERVER['REQUEST_METHOD'] === 'GET' ? 'analyst' : 'admin');
     
     // POST - Update driver status
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = getJsonInput();
         $driver_id = (int) ($input['driver_id'] ?? 0);
         $action = $input['action'] ?? '';
         

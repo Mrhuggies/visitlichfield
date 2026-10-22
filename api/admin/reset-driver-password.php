@@ -3,7 +3,7 @@
  * Admin Reset Driver Password API
  * Allows admins to reset driver passwords directly
  */
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 
 initApiEndpoint();
 
@@ -14,9 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
-    $admin_token = $input['admin_token'] ?? '';
+    $admin_token = requestToken('admin', $input);
     $driver_email = $input['email'] ?? '';
     $new_password = $input['password'] ?? '';
     
@@ -28,15 +28,8 @@ try {
         jsonError('Email and password required');
     }
     
-    // Verify admin token
-    $stmt = $conn->prepare("SELECT id, role FROM admin_users WHERE auth_token = ? AND token_expires > NOW()");
-    $stmt->bind_param("s", $admin_token);
-    $stmt->execute();
-    $admin = $stmt->get_result()->fetch_assoc();
-    
-    if (!$admin) {
-        jsonError('Invalid or expired admin token', 401);
-    }
+    // Verify admin token (analysts may not reset passwords)
+    $admin = requireAdmin($conn, $admin_token, 'admin');
     
     // Validate password strength
     $passwordCheck = validatePassword($new_password);

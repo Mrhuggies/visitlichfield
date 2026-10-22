@@ -12,9 +12,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('Method not allowed', 405);
 }
 
+checkRateLimit('join_' . getClientIp(), 60, 3600);
+
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
     if (!isset($input['tour_code']) || !isset($input['session_id'])) {
         jsonError('tour_code and session_id required');
@@ -22,6 +24,9 @@ try {
     
     $tour_code = strtoupper(sanitizeString($input['tour_code'], 20));
     $session_id = sanitizeString($input['session_id'], 64);
+    if (!preg_match('/^[A-Za-z0-9_-]{8,64}$/', $session_id)) {
+        jsonError('Invalid session_id');
+    }
     
     // Validate tour code format
     if (!preg_match('/^[A-Z0-9-]{4,20}$/', $tour_code)) {

@@ -1,0 +1,14 @@
+# User uploads: never execute anything from here, whatever the file is called.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|pl|py|cgi|sh|shtml|htm|html|svg)$">
+    Require all denied
+</FilesMatch>
+Options -Indexes

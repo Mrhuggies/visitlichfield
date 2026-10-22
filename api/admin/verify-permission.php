@@ -10,7 +10,7 @@ initApiEndpoint();
 try {
     $conn = getDbConnection();
     
-    $token = $_GET['token'] ?? '';
+    $token = requestToken('admin');
     $required_role = $_GET['required_role'] ?? 'admin';
     
     if (empty($token)) {

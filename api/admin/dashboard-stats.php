@@ -11,17 +11,8 @@ try {
     $conn = getDbConnection();
     
     // Verify admin token
-    $token = $_GET['token'] ?? '';
-    if (!$token) {
-        jsonError('Authorization required', 401);
-    }
-    
-    $stmt = $conn->prepare("SELECT id FROM admin_users WHERE auth_token = ? AND token_expires > NOW()");
-    $stmt->bind_param("s", $token);
-    $stmt->execute();
-    if (!$stmt->get_result()->fetch_assoc()) {
-        jsonError('Invalid or expired token', 401);
-    }
+    $token = requestToken('admin');
+    $admin = requireAdmin($conn, $token, 'analyst');
     
     // Get date range (default: last 30 days)
     $date_from = $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days'));

@@ -12,11 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('Method not allowed', 405);
 }
 
+$ip = getClientIp();
+checkRateLimit('upload_' . $ip, 20, 3600);
+
 try {
     $conn = getDbConnection();
     
     // Get auth token
-    $token = $_POST['token'] ?? '';
+    $token = requestToken('driver');
     if (!$token) {
         jsonError('Authorization required', 401);
     }
@@ -50,7 +53,7 @@ try {
             UPLOAD_ERR_CANT_WRITE => 'Failed to write file',
             UPLOAD_ERR_EXTENSION => 'Upload blocked by extension'
         ];
-        jsonError($errors[$file['error']] ?? 'Upload failed', 500);
+        jsonError($errors[$file['error']] ?? 'Upload failed', $file['error'] === UPLOAD_ERR_INI_SIZE ? 413 : 500);
     }
     
     // Validate file size
@@ -85,16 +88,6 @@ try {
     $upload_dir = __DIR__ . '/../uploads/drivers/';
     if (!file_exists($upload_dir)) {
         mkdir($upload_dir, 0755, true);
-        
-        // Create .htaccess to prevent PHP execution
-        file_put_contents($upload_dir . '.htaccess', 
-            "php_flag engine off\n" .
-            "AddHandler cgi-script .php .php3 .php4 .php5 .phtml .pl .py .jsp .asp .htm .shtml .sh .cgi\n" .
-            "Options -ExecCGI\n" .
-            "<FilesMatch \"\\.(php|php3|php4|php5|phtml|pl|py|jsp|asp|htm|shtml|sh|cgi)$\">\n" .
-            "    Deny from all\n" .
-            "</FilesMatch>"
-        );
     }
     
     // SECURE: Generate random filename (don't use original filename)
@@ -102,10 +95,31 @@ try {
     $filename = 'driver_' . $driver_id . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
     $filepath = $upload_dir . $filename;
     
-    // Move uploaded file
-    if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+    // Re-encode through GD where possible: this strips EXIF (including GPS) and any bytes hidden
+    // after the image data. Animated GIFs are stored as uploaded (re-encoding would flatten them).
+    $saved = false;
+    if (function_exists('imagecreatefromstring') && $imageInfo[2] !== IMAGETYPE_GIF) {
+        $img = @imagecreatefromstring((string) file_get_contents($file['tmp_name']));
+        if ($img !== false) {
+            switch ($imageInfo[2]) {
+                case IMAGETYPE_JPEG:
+                    $saved = imagejpeg($img, $filepath, 88);
+                    break;
+                case IMAGETYPE_PNG:
+                    imagesavealpha($img, true);
+                    $saved = imagepng($img, $filepath);
+                    break;
+                case IMAGETYPE_WEBP:
+                    $saved = function_exists('imagewebp') && imagewebp($img, $filepath, 88);
+                    break;
+            }
+            imagedestroy($img);
+        }
+    }
+    if (!$saved && !move_uploaded_file($file['tmp_name'], $filepath)) {
         jsonError('Failed to save photo', 500);
     }
+    @chmod($filepath, 0644);
     
     // Delete old photo if exists
     $stmt = $conn->prepare("SELECT profile_photo FROM drivers WHERE id = ?");
@@ -114,8 +128,10 @@ try {
     $result = $stmt->get_result();
     if ($row = $result->fetch_assoc()) {
         $oldPath = __DIR__ . '/../' . $row['profile_photo'];
-        if ($row['profile_photo'] && file_exists($oldPath)) {
-            unlink($oldPath);
+        $uploadsRoot = realpath($upload_dir);
+        $oldReal = $row['profile_photo'] ? realpath($oldPath) : false;
+        if ($oldReal !== false && $uploadsRoot !== false && strpos($oldReal, $uploadsRoot . DIRECTORY_SEPARATOR) === 0) {
+            unlink($oldReal);
         }
     }
     

@@ -18,7 +18,7 @@ checkRateLimit('feedback_' . $ip, 10, 3600);
 
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
     $rating = isset($input['rating']) ? (int) $input['rating'] : 0;
     $feedback = isset($input['feedback']) ? sanitizeString($input['feedback'], 2000) : '';

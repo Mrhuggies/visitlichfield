@@ -11,7 +11,7 @@ try {
     $conn = getDbConnection();
     
     // Get token from query string
-    $token = isset($_GET['token']) ? sanitizeString($_GET['token'], 64) : '';
+    $token = requestToken('driver');
     
     if (empty($token)) {
         jsonError('Token required', 401);

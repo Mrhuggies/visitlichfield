@@ -1,0 +1,14 @@
+# Apache 2.4 (Plesk). Never serve tooling, notes, SQL, logs or backups from the web root.
+Options -Indexes
+
+<FilesMatch "(?i)\.(py|sh|md|sql|log|bak|orig|swp|env)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^(DELETED_.*|config\.local\.example\.php|start-server\.sh)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

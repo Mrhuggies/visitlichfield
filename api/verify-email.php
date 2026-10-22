@@ -10,7 +10,7 @@ initApiEndpoint();
 try {
     $conn = getDbConnection();
     
-    $token = $_GET['token'] ?? '';
+    $token = isset($_GET['token']) && is_string($_GET['token']) ? substr($_GET['token'], 0, 128) : '';
     
     if (empty($token)) {
         jsonError('Verification token required');
@@ -27,14 +27,14 @@ try {
     }
     
     // Mark as verified and activate
-    $stmt = $conn->prepare("UPDATE drivers SET email_verified = 1, active = 1, verification_token = NULL, verification_expires = NULL WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE drivers SET email_verified = 1, verification_token = NULL, verification_expires = NULL WHERE id = ?");
     $stmt->bind_param("i", $driver['id']);
     
     if ($stmt->execute()) {
         logSecurityEvent('email_verified', ['email' => $driver['email'], 'driver_id' => $driver['id']]);
         
         jsonSuccess([
-            'message' => 'Email verified successfully',
+            'message' => 'Email verified. An administrator still needs to approve your account before you can sign in.',
             'driver_name' => sanitizeString($driver['name']),
             'email' => $driver['email']
         ]);

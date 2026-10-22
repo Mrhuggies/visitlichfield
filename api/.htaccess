@@ -1,0 +1,4 @@
+# The config files are only ever include()d by PHP; they must never be requested over HTTP.
+<FilesMatch "^config(\.local\.example)?\.php$">
+    Require all denied
+</FilesMatch>

@@ -18,7 +18,7 @@ checkRateLimit('admin_request_' . $ip, 2, 3600);
 
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
     $email = isset($input['email']) ? sanitizeEmail($input['email']) : '';
     $name = isset($input['name']) ? sanitizeString($input['name'], 100) : '';

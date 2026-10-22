@@ -11,22 +11,12 @@ try {
     $conn = getDbConnection();
     
     // Verify admin token
-    $token = $_GET['token'] ?? '';
-    if (!$token) {
-        jsonError('Authorization required', 401);
-    }
-    
-    $stmt = $conn->prepare("SELECT id FROM admin_users WHERE auth_token = ? AND token_expires > NOW()");
-    $stmt->bind_param("s", $token);
-    $stmt->execute();
-    $admin = $stmt->get_result()->fetch_assoc();
-    if (!$admin) {
-        jsonError('Invalid or expired token', 401);
-    }
+    $token = requestToken('admin');
+    $admin = requireAdmin($conn, $token, $_SERVER['REQUEST_METHOD'] === 'GET' ? 'analyst' : 'admin');
     
     // POST - Update tour status
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = getJsonInput();
         $tour_id = (int) ($input['tour_id'] ?? 0);
         $action = $input['action'] ?? '';
         
@@ -94,8 +84,8 @@ try {
     $date_from = $_GET['date_from'] ?? date('Y-m-d', strtotime('-30 days'));
     $date_to = $_GET['date_to'] ?? date('Y-m-d');
     $search = isset($_GET['search']) ? sanitizeString($_GET['search'], 100) : '';
-    $limit = min((int) ($_GET['limit'] ?? 100), 500);
-    $offset = (int) ($_GET['offset'] ?? 0);
+    $limit = clampInt($_GET['limit'] ?? null, 1, 500, 100);
+    $offset = clampInt($_GET['offset'] ?? null, 0, 1000000, 0);
     
     // Sanitize dates
     $date_from = date('Y-m-d', strtotime($date_from));

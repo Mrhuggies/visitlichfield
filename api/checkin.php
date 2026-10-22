@@ -12,9 +12,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonError('Method not allowed', 405);
 }
 
+checkRateLimit('checkin_' . getClientIp(), 200, 3600);
+
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
     $tour_code = isset($input['tour_code']) ? sanitizeString($input['tour_code'], 20) : '';
     $session_id = isset($input['session_id']) ? sanitizeString($input['session_id'], 64) : '';

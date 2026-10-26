@@ -18,13 +18,15 @@ checkRateLimit('reset_' . $ip, 3, 3600);
 
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
     $email = isset($input['email']) ? sanitizeEmail($input['email']) : '';
     
     if (empty($email)) {
         jsonError('Email required');
     }
+
+    checkRateLimit('reset_addr_' . hash('sha256', $email), 3, 3600);
     
     // Check if driver exists (but don't reveal this to user)
     $stmt = $conn->prepare("SELECT id, name FROM drivers WHERE email = ?");

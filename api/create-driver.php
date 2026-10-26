@@ -18,7 +18,7 @@ checkRateLimit('register_' . $ip, 5, 3600);
 
 try {
     $conn = getDbConnection();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     
     // Validate required fields
     if (!isset($input['name']) || !isset($input['email']) || !isset($input['password'])) {
@@ -51,7 +51,12 @@ try {
     $stmt->bind_param("s", $email);
     $stmt->execute();
     if ($stmt->get_result()->num_rows > 0) {
-        jsonError('Email already exists', 409);
+        // Same response as a fresh sign-up so the form cannot be used to discover which emails have accounts
+        logSecurityEvent('driver_register_duplicate', ['email' => $email]);
+        jsonSuccess([
+            'email' => $email,
+            'message' => 'Account created! Please check your email to verify your account.'
+        ]);
     }
     
     // Hash password
@@ -88,9 +93,7 @@ try {
         logSecurityEvent('driver_registered', ['driver_id' => $driver_id, 'email' => $email]);
         
         jsonSuccess([
-            'driver_id' => $driver_id,
             'email' => $email,
-            'name' => $name,
             'message' => 'Account created! Please check your email to verify your account.'
         ]);
     } else {

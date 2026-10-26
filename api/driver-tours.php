@@ -11,7 +11,7 @@ try {
     $conn = getDbConnection();
     
     // Check auth token
-    $token = $_SERVER['HTTP_X_DRIVER_TOKEN'] ?? $_GET['token'] ?? null;
+    $token = requestToken('driver') ?: null;
     
     if (!$token) {
         jsonError('Authentication required', 401);
@@ -28,7 +28,7 @@ try {
     }
     
     $status_filter = isset($_GET['status']) ? sanitizeString($_GET['status'], 20) : '';
-    $limit = min((int) ($_GET['limit'] ?? 50), 100);
+    $limit = clampInt($_GET['limit'] ?? null, 1, 100, 50);
     
     $query = "
         SELECT 

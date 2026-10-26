@@ -19,18 +19,29 @@ try {
     
     // Handle POST updates
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $input = json_decode(file_get_contents('php://input'), true);
+        $input = getJsonInput();
         
-        // Get tour ID first
-        $stmt = $conn->prepare("SELECT id FROM tours WHERE tour_code = ?");
-        $stmt->bind_param("s", $tour_code);
+        // Only the signed-in driver who owns the tour may change it
+        $token = requestToken('driver', $input);
+        if ($token === '') {
+            jsonError('Authentication required', 401);
+        }
+        $stmt = $conn->prepare("SELECT id FROM drivers WHERE auth_token = ? AND token_expires > NOW() AND active = 1");
+        $stmt->bind_param("s", $token);
+        $stmt->execute();
+        if (!$driver = $stmt->get_result()->fetch_assoc()) {
+            jsonError('Invalid or expired token', 401);
+        }
+
+        $stmt = $conn->prepare("SELECT id FROM tours WHERE tour_code = ? AND driver_id = ?");
+        $stmt->bind_param("si", $tour_code, $driver['id']);
         $stmt->execute();
         $result = $stmt->get_result();
-        
+
         if (!$tour = $result->fetch_assoc()) {
-            jsonError('Tour not found', 404);
+            jsonError('Tour not found or access denied', 404);
         }
-        
+
         $updates = [];
         $params = [];
         $types = "";
@@ -39,6 +50,8 @@ try {
         if (array_key_exists('departure_time', $input)) {
             if ($input['departure_time'] === null || $input['departure_time'] === '') {
                 $updates[] = "departure_time = NULL";
+            } elseif (!is_string($input['departure_time']) || strlen($input['departure_time']) > 32 || strtotime($input['departure_time']) === false) {
+                jsonError('Invalid departure_time');
             } else {
                 $updates[] = "departure_time = ?";
                 $params[] = $input['departure_time'];
@@ -55,6 +68,9 @@ try {
         
         // Handle actual_departure update
         if (isset($input['actual_departure'])) {
+            if (!is_string($input['actual_departure']) || strlen($input['actual_departure']) > 32 || strtotime($input['actual_departure']) === false) {
+                jsonError('Invalid actual_departure');
+            }
             $updates[] = "actual_departure = ?";
             $params[] = $input['actual_departure'];
             $types .= "s";
@@ -89,7 +105,6 @@ try {
             cc.name as current_city_name,
             cc.slug as current_city_slug,
             d.name as driver_name,
-            d.phone as driver_phone,
             d.profile_photo as driver_photo
         FROM tours t
         LEFT JOIN cities c ON t.city_id = c.id
@@ -132,7 +147,6 @@ try {
         'current_city_name' => $tour['current_city_name'],
         'current_city_slug' => $tour['current_city_slug'],
         'driver_name' => $tour['driver_name'],
-        'driver_phone' => $tour['driver_phone'],
         'driver_photo' => $tour['driver_photo'] ? BASE_URL . '/' . $tour['driver_photo'] : null,
         'participant_count' => (int) $participant_count,
         'started_at' => $tour['started_at'],

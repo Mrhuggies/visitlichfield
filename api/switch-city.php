@@ -16,7 +16,7 @@ try {
     $conn = getDbConnection();
     
     // Check auth token
-    $token = $_SERVER['HTTP_X_DRIVER_TOKEN'] ?? null;
+    $token = requestToken('driver') ?: null;
     
     if (!$token) {
         jsonError('Authentication required', 401);
@@ -32,7 +32,7 @@ try {
         jsonError('Invalid or expired token', 403);
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = getJsonInput();
     $tour_code = isset($input['tour_code']) ? sanitizeString($input['tour_code'], 20) : '';
     $new_city_id = isset($input['city_id']) ? (int) $input['city_id'] : 0;
     $new_city_slug = isset($input['city_slug']) ? sanitizeString($input['city_slug'], 50) : '';
